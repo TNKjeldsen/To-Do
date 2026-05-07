@@ -11,6 +11,7 @@ import {
 } from '../lib/backup';
 import { Sheet } from './Sheet';
 import { Icon } from './Icon';
+import { SyncSection } from './SyncSection';
 
 interface SettingsSheetProps {
   open: boolean;
@@ -128,6 +129,8 @@ export function SettingsSheet({ open, onClose }: SettingsSheetProps) {
             </div>
           </div>
         </section>
+
+        <SyncSection />
 
         <section>
           <h3 className="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-2">

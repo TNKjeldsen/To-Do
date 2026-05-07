@@ -6,6 +6,7 @@ export function exportToJSON(data: AppData): string {
   const payload: AppData = {
     schemaVersion: SCHEMA_VERSION,
     activeWorkspace: data.activeWorkspace,
+    lastModified: data.lastModified,
     tasks: data.tasks,
     exportedAt: new Date().toISOString(),
   };

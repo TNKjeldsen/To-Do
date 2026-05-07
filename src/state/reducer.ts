@@ -27,11 +27,18 @@ export function emptyState(): AppData {
   return {
     schemaVersion: SCHEMA_VERSION,
     activeWorkspace: 'private',
+    lastModified: Date.now(),
     tasks: [],
   };
 }
 
 const now = () => new Date().toISOString();
+const stamp = () => Date.now();
+
+/** Wrap a state update so lastModified is bumped automatically. */
+function touched<T extends AppData>(state: T): T {
+  return { ...state, lastModified: stamp() };
+}
 
 /** Tasks on a date — limited to the active workspace so ordering and inserts
  *  don't collide across workspaces. */
@@ -87,7 +94,30 @@ function renumberDay(
   );
 }
 
+/** Actions that change persisted task data and should bump lastModified. */
+const MUTATING_ACTIONS = new Set<Action['type']>([
+  'ADD_TASK',
+  'UPDATE_TASK',
+  'TOGGLE_TASK',
+  'DELETE_TASK',
+  'MOVE_TASK',
+  'REORDER_TASK',
+  'ADD_SUBTASK',
+  'UPDATE_SUBTASK',
+  'TOGGLE_SUBTASK',
+  'DELETE_SUBTASK',
+]);
+
 export function reducer(state: AppData, action: Action): AppData {
+  const next = dataReducer(state, action);
+  if (next === state) return state;
+  if (MUTATING_ACTIONS.has(action.type)) {
+    return touched(next);
+  }
+  return next;
+}
+
+function dataReducer(state: AppData, action: Action): AppData {
   switch (action.type) {
     case 'HYDRATE':
       return action.data;

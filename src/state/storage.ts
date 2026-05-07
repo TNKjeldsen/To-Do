@@ -28,6 +28,10 @@ export function validateAppData(input: unknown): AppData | null {
   if (!Array.isArray(obj.tasks)) return null;
 
   const activeWorkspace = asWorkspace(obj.activeWorkspace);
+  const lastModified =
+    typeof obj.lastModified === 'number' && Number.isFinite(obj.lastModified)
+      ? obj.lastModified
+      : Date.now();
 
   const tasks: Task[] = [];
   for (const raw of obj.tasks) {
@@ -66,6 +70,7 @@ export function validateAppData(input: unknown): AppData | null {
   return {
     schemaVersion: SCHEMA_VERSION,
     activeWorkspace,
+    lastModified,
     tasks,
   };
 }

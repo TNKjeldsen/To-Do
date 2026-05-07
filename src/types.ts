@@ -29,12 +29,15 @@ export interface Task {
   subtasks: Subtask[];
 }
 
-export const SCHEMA_VERSION = 2 as const;
+export const SCHEMA_VERSION = 3 as const;
 
 export interface AppData {
   schemaVersion: typeof SCHEMA_VERSION;
   /** Currently active workspace — only tasks matching this are shown. */
   activeWorkspace: WorkspaceId;
+  /** Epoch milliseconds of the last data-modifying action. Used by sync to
+   *  decide whether the local or remote version wins (last-write-wins). */
+  lastModified: number;
   tasks: Task[];
   exportedAt?: string;
 }

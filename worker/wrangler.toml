@@ -1,0 +1,24 @@
+# Cloudflare Worker for Ugeplan sync.
+#
+# Quick setup (see worker/README.md for full guide):
+#   1. npm i -g wrangler
+#   2. wrangler login
+#   3. wrangler kv namespace create TODO_KV
+#   4. Paste the returned id below under [[kv_namespaces]]
+#   5. (optional) restrict ALLOWED_ORIGINS to your GitHub Pages URL
+#   6. wrangler deploy
+
+name = "ugeplan-sync"
+main = "index.ts"
+compatibility_date = "2024-12-01"
+
+# Replace with the ID returned from `wrangler kv namespace create TODO_KV`.
+[[kv_namespaces]]
+binding = "TODO_KV"
+id = "8939191880974e8bbaf1686aadd79fed"
+
+# Restrict in production. "*" is permissive but the sync key acts as the
+# real auth, so this is acceptable for personal use. Comma-separated list.
+[vars]
+ALLOWED_ORIGINS = "*"
+MAX_PAYLOAD_BYTES = "5242880" # 5 MB

@@ -73,17 +73,46 @@ installere PWA via et lokalt IP — det kræver HTTPS.
 
 ## Datalagring og sync
 
-Al data gemmes i `localStorage` under nøglen `todo.app.v1`. Det betyder:
+Al data gemmes lokalt i `localStorage` under nøglen `todo.app.v1`. Sync
+mellem enheder sker via en gratis Cloudflare Worker som du selv deployer.
 
-- Data er **per browser, per enhed, per Chrome-profil** — der er **ingen
-  automatisk sync** mellem dine enheder.
-- Brug **Indstillinger → Eksportér JSON** til at gemme en backup-fil. Læg
-  den fx i iCloud Drive eller Google Drive, og **importér** den på en anden
-  enhed for at flytte data.
-- Inden import laves automatisk en sikkerhedskopi af eksisterende data.
+### Local-first
 
-Ægte automatisk cross-device sync kræver en cloud-komponent (kommer evt. i v2
-via Cloudflare Workers + KV).
+Appen virker fuldt offline uden sync. Hvis du kun bruger én enhed eller én
+browser kan du springe sync over og kun bruge JSON eksport/import som backup.
+
+### Manuel backup (altid tilgængelig)
+
+**Indstillinger → Eksportér JSON** downloader en backup-fil. Læg den fx i
+iCloud Drive eller Google Drive, og **importér** den på en anden enhed.
+Inden import laves automatisk en sikkerhedskopi af eksisterende data.
+
+### Automatisk sync mellem enheder (anbefales)
+
+Følg [`worker/README.md`](worker/README.md) for at deploye en Cloudflare
+Worker (engangs-opsætning, ~5 min, 0 kr.).
+
+Bagefter:
+
+1. På den **første enhed**: åbn appens **Indstillinger → Sync** → "Konfigurér
+   sync". Indtast Worker-URL'en og klik **Generér ny** for at lave en
+   sync-nøgle. Gem nøglen et sikkert sted.
+2. På **andre enheder**: gentag, men brug *samme* Worker-URL og *samme*
+   sync-nøgle.
+
+Auto-sync kører nu:
+- Push 2,5 sek. efter du redigerer noget
+- Pull når appen får fokus (med en 5 sek. cooldown)
+- Konflikter løses som **last-write-wins** baseret på `lastModified`-timestamp
+
+Begrænsninger:
+- Hvis du redigerer på 2 enheder offline samtidig og begge går online, vinder
+  den der pushes sidst — den anden enheds ændringer kan blive overskrevet.
+  I praksis sjældent et problem hvis du primært bruger én enhed ad gangen.
+- Sync-nøglen er én streng der både identificerer og beskytter dine data —
+  hold den hemmelig (del aldrig screenshots med URL inkluderet).
+- Worker'en gemmer ukrypteret JSON. Tilstrækkeligt for personligt brug, men
+  hvis du vil have end-to-end-kryptering kan det tilføjes senere.
 
 ## PWA på iPhone
 
