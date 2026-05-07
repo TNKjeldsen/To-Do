@@ -31,6 +31,8 @@ export function SettingsSheet({ open, onClose }: SettingsSheetProps) {
 
   const taskCount = state.tasks.length;
   const subtaskCount = state.tasks.reduce((acc, t) => acc + t.subtasks.length, 0);
+  const privateCount = state.tasks.filter((t) => t.workspace === 'private').length;
+  const workCount = state.tasks.filter((t) => t.workspace === 'work').length;
 
   const handleExport = () => {
     downloadBackup(state);
@@ -88,7 +90,7 @@ export function SettingsSheet({ open, onClose }: SettingsSheetProps) {
   const handleClearAll = () => {
     if (
       window.confirm(
-        `Slet ALLE ${taskCount} opgaver og deres underpunkter? Dette kan ikke fortrydes. Eksport\u00e9r f\u00f8rst hvis du vil beholde en kopi.`
+        `Slet ALLE ${taskCount} opgaver og deres underpunkter? Dette kan ikke fortrydes. Eksportér først hvis du vil beholde en kopi.`
       )
     ) {
       dispatch({ type: 'CLEAR_ALL' });
@@ -102,10 +104,20 @@ export function SettingsSheet({ open, onClose }: SettingsSheetProps) {
           <h3 className="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-2">
             Status
           </h3>
-          <div className="rounded-lg bg-slate-800/50 border border-slate-800 p-3 text-sm">
+          <div className="rounded-lg bg-slate-800/50 border border-slate-800 p-3 text-sm space-y-1">
             <div>
-              <span className="text-slate-400">Opgaver: </span>
+              <span className="text-slate-400">Opgaver i alt: </span>
               <span className="font-semibold">{taskCount}</span>
+            </div>
+            <div className="flex gap-4">
+              <div>
+                <span className="text-slate-400">Privat: </span>
+                <span className="font-semibold text-sky-300">{privateCount}</span>
+              </div>
+              <div>
+                <span className="text-slate-400">Arbejde: </span>
+                <span className="font-semibold text-amber-300">{workCount}</span>
+              </div>
             </div>
             <div>
               <span className="text-slate-400">Underpunkter: </span>

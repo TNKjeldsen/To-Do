@@ -98,11 +98,16 @@ export function useDispatch(): (action: Action) => void {
 
 export function useTasksByDate(date: string) {
   const { state } = useAppState();
+  const ws = state.activeWorkspace;
   return useMemo(
     () =>
       state.tasks
-        .filter((t) => t.date === date)
+        .filter((t) => t.date === date && t.workspace === ws)
         .sort((a, b) => a.order - b.order),
-    [state.tasks, date]
+    [state.tasks, date, ws]
   );
+}
+
+export function useActiveWorkspace() {
+  return useAppState().state.activeWorkspace;
 }

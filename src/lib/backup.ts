@@ -5,6 +5,7 @@ import { toDateKey } from './date';
 export function exportToJSON(data: AppData): string {
   const payload: AppData = {
     schemaVersion: SCHEMA_VERSION,
+    activeWorkspace: data.activeWorkspace,
     tasks: data.tasks,
     exportedAt: new Date().toISOString(),
   };

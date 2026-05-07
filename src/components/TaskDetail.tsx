@@ -69,7 +69,7 @@ export function TaskDetail({ taskId, onClose, onMove }: TaskDetailProps) {
         task ? (
           <span className="text-slate-300 font-medium">
             {dayLabel(((parseDateKey(task.date).getDay() + 6) % 7))}
-            {' \u00b7 '}
+            {' · '}
             <span className="text-slate-400 font-normal">
               {format(parseDateKey(task.date), 'd. MMMM yyyy', { locale: da })}
             </span>
@@ -87,7 +87,7 @@ export function TaskDetail({ taskId, onClose, onMove }: TaskDetailProps) {
             <button
               type="button"
               onClick={() => dispatch({ type: 'TOGGLE_TASK', id: task.id })}
-              aria-label={task.done ? 'Marker som ikke f\u00e6rdig' : 'Marker som f\u00e6rdig'}
+              aria-label={task.done ? 'Marker som ikke færdig' : 'Marker som færdig'}
               className={[
                 'shrink-0 mt-1 w-6 h-6 rounded-md border flex items-center justify-center transition',
                 task.done

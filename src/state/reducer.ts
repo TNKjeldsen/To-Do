@@ -1,8 +1,15 @@
 import { newId } from '../lib/id';
-import { SCHEMA_VERSION, type AppData, type Subtask, type Task } from '../types';
+import {
+  SCHEMA_VERSION,
+  type AppData,
+  type Subtask,
+  type Task,
+  type WorkspaceId,
+} from '../types';
 
 export type Action =
   | { type: 'HYDRATE'; data: AppData }
+  | { type: 'SET_WORKSPACE'; workspace: WorkspaceId }
   | { type: 'ADD_TASK'; date: string; title: string }
   | { type: 'UPDATE_TASK'; id: string; patch: Partial<Pick<Task, 'title'>> }
   | { type: 'TOGGLE_TASK'; id: string }
@@ -17,14 +24,20 @@ export type Action =
   | { type: 'CLEAR_ALL' };
 
 export function emptyState(): AppData {
-  return { schemaVersion: SCHEMA_VERSION, tasks: [] };
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    activeWorkspace: 'private',
+    tasks: [],
+  };
 }
 
 const now = () => new Date().toISOString();
 
+/** Tasks on a date — limited to the active workspace so ordering and inserts
+ *  don't collide across workspaces. */
 function tasksOnDay(state: AppData, date: string): Task[] {
   return state.tasks
-    .filter((t) => t.date === date)
+    .filter((t) => t.date === date && t.workspace === state.activeWorkspace)
     .sort((a, b) => a.order - b.order);
 }
 
@@ -51,15 +64,18 @@ function orderForInsert(
   const prev = list[idx - 1]!.order;
   const next = list[idx]!.order;
   const between = (prev + next) / 2;
-  // If the gap is too small, signal renumber.
   if (next - prev < 0.0001) return { order: between, renumber: true };
   return { order: between, renumber: false };
 }
 
-function renumberDay(tasks: Task[], date: string): Task[] {
+function renumberDay(
+  tasks: Task[],
+  date: string,
+  workspace: WorkspaceId
+): Task[] {
   let counter = 1000;
   const sorted = tasks
-    .filter((t) => t.date === date)
+    .filter((t) => t.date === date && t.workspace === workspace)
     .sort((a, b) => a.order - b.order);
   const orderById = new Map<string, number>();
   for (const t of sorted) {
@@ -82,6 +98,10 @@ export function reducer(state: AppData, action: Action): AppData {
     case 'CLEAR_ALL':
       return emptyState();
 
+    case 'SET_WORKSPACE':
+      if (state.activeWorkspace === action.workspace) return state;
+      return { ...state, activeWorkspace: action.workspace };
+
     case 'ADD_TASK': {
       const title = action.title.trim();
       if (!title) return state;
@@ -93,6 +113,7 @@ export function reducer(state: AppData, action: Action): AppData {
         order: nextOrder(state, action.date),
         createdAt: now(),
         updatedAt: now(),
+        workspace: state.activeWorkspace,
         subtasks: [],
       };
       return { ...state, tasks: [...state.tasks, task] };
@@ -132,9 +153,14 @@ export function reducer(state: AppData, action: Action): AppData {
     case 'MOVE_TASK': {
       const task = state.tasks.find((t) => t.id === action.id);
       if (!task) return state;
-      const targetList = tasksOnDay(state, action.toDate).filter(
-        (t) => t.id !== task.id
-      );
+      const targetList = state.tasks
+        .filter(
+          (t) =>
+            t.date === action.toDate &&
+            t.workspace === task.workspace &&
+            t.id !== task.id
+        )
+        .sort((a, b) => a.order - b.order);
       const { order, renumber } = orderForInsert(
         targetList,
         action.toIndex ?? targetList.length
@@ -144,19 +170,26 @@ export function reducer(state: AppData, action: Action): AppData {
           ? { ...t, date: action.toDate, order, updatedAt: now() }
           : t
       );
-      if (renumber) next = renumberDay(next, action.toDate);
+      if (renumber) next = renumberDay(next, action.toDate, task.workspace);
       return { ...state, tasks: next };
     }
 
     case 'REORDER_TASK': {
       const task = state.tasks.find((t) => t.id === action.id);
       if (!task) return state;
-      const list = tasksOnDay(state, task.date).filter((t) => t.id !== task.id);
+      const list = state.tasks
+        .filter(
+          (t) =>
+            t.date === task.date &&
+            t.workspace === task.workspace &&
+            t.id !== task.id
+        )
+        .sort((a, b) => a.order - b.order);
       const { order, renumber } = orderForInsert(list, action.toIndex);
       let next = state.tasks.map((t) =>
         t.id === task.id ? { ...t, order, updatedAt: now() } : t
       );
-      if (renumber) next = renumberDay(next, task.date);
+      if (renumber) next = renumberDay(next, task.date, task.workspace);
       return { ...state, tasks: next };
     }
 

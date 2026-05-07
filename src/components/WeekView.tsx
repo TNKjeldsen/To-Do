@@ -31,14 +31,16 @@ export function WeekView({ reference, onOpenTask, onMoveTask }: WeekViewProps) {
   const [activeIdx, setActiveIdx] = useState<number>(todayIndex >= 0 ? todayIndex : 0);
   const safeActive = Math.min(activeIdx, 6);
 
+  const activeWorkspace = state.activeWorkspace;
   const tasksPerDay = useMemo(() => {
     const counts = new Array(7).fill(0) as number[];
     for (const t of state.tasks) {
+      if (t.workspace !== activeWorkspace) continue;
       const idx = dayKeys.indexOf(t.date);
       if (idx >= 0 && !t.done) counts[idx]! += 1;
     }
     return counts;
-  }, [state.tasks, dayKeys]);
+  }, [state.tasks, dayKeys, activeWorkspace]);
 
   // Mouse sensor only — touch users get the explicit Move button instead.
   const sensors = useSensors(

@@ -1,17 +1,33 @@
-import { SCHEMA_VERSION, type AppData, type Subtask, type Task } from '../types';
+import {
+  SCHEMA_VERSION,
+  type AppData,
+  type Subtask,
+  type Task,
+  type WorkspaceId,
+} from '../types';
 import { emptyState } from './reducer';
 
 export const STORAGE_KEY = 'todo.app.v1';
 
+function asWorkspace(value: unknown, fallback: WorkspaceId = 'private'): WorkspaceId {
+  return value === 'work' || value === 'private' ? value : fallback;
+}
+
 /**
  * Validate and migrate data loaded from localStorage. Returns null if data
  * is unusable so the app can fall back to an empty state.
+ *
+ * Schema migrations:
+ *   v1 → v2: tasks gain `workspace`, AppData gains `activeWorkspace`.
+ *            Existing tasks default to "private" so the user's data appears
+ *            in their (default) Privat workspace.
  */
 export function validateAppData(input: unknown): AppData | null {
   if (!input || typeof input !== 'object') return null;
   const obj = input as Record<string, unknown>;
-  const version = typeof obj.schemaVersion === 'number' ? obj.schemaVersion : 0;
   if (!Array.isArray(obj.tasks)) return null;
+
+  const activeWorkspace = asWorkspace(obj.activeWorkspace);
 
   const tasks: Task[] = [];
   for (const raw of obj.tasks) {
@@ -42,14 +58,16 @@ export function validateAppData(input: unknown): AppData | null {
       order: typeof t.order === 'number' ? t.order : tasks.length * 1000 + 1000,
       createdAt: typeof t.createdAt === 'string' ? t.createdAt : new Date().toISOString(),
       updatedAt: typeof t.updatedAt === 'string' ? t.updatedAt : new Date().toISOString(),
+      workspace: asWorkspace(t.workspace),
       subtasks: subs,
     });
   }
 
-  // Future migrations would happen here based on `version`.
-  void version;
-
-  return { schemaVersion: SCHEMA_VERSION, tasks };
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    activeWorkspace,
+    tasks,
+  };
 }
 
 export function loadFromStorage(): AppData {

@@ -5,6 +5,7 @@ import {
   weekLabel,
 } from '../lib/date';
 import { Icon } from './Icon';
+import { WorkspaceToggle } from './WorkspaceToggle';
 
 interface WeekHeaderProps {
   reference: Date;
@@ -27,7 +28,7 @@ export function WeekHeader({
 
   return (
     <header className="safe-top sticky top-0 z-20 bg-slate-950/80 backdrop-blur border-b border-slate-800">
-      <div className="max-w-[1700px] mx-auto flex items-center gap-2 px-3 py-3">
+      <div className="max-w-[1700px] mx-auto px-3 py-2 flex items-center gap-2">
         <button
           type="button"
           onClick={onPrev}
@@ -39,7 +40,7 @@ export function WeekHeader({
         <button
           type="button"
           onClick={onToday}
-          aria-label="G\u00e5 til denne uge"
+          aria-label="Gå til denne uge"
           className="px-3 py-2 rounded-lg flex items-center gap-2 hover:bg-slate-800 active:bg-slate-700 transition"
         >
           <Icon name="today" size={18} />
@@ -48,7 +49,7 @@ export function WeekHeader({
         <button
           type="button"
           onClick={onNext}
-          aria-label="N\u00e6ste uge"
+          aria-label="Næste uge"
           className="p-2 rounded-lg hover:bg-slate-800 active:bg-slate-700 transition"
         >
           <Icon name="chevron-right" size={20} />
@@ -63,6 +64,10 @@ export function WeekHeader({
           </div>
         </div>
 
+        <div className="hidden sm:block">
+          <WorkspaceToggle />
+        </div>
+
         <button
           type="button"
           onClick={onOpenSettings}
@@ -71,6 +76,11 @@ export function WeekHeader({
         >
           <Icon name="gear" size={20} />
         </button>
+      </div>
+
+      {/* Mobile-only second row for the workspace toggle, centered. */}
+      <div className="sm:hidden flex justify-center pb-2 px-3">
+        <WorkspaceToggle />
       </div>
     </header>
   );

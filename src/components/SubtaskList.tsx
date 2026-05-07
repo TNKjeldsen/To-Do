@@ -39,7 +39,7 @@ function SubtaskRow({ taskId, subtask }: SubtaskRowProps) {
       <button
         type="button"
         onClick={() => dispatch({ type: 'TOGGLE_SUBTASK', taskId, subId: subtask.id })}
-        aria-label={subtask.done ? 'Marker som ikke f\u00e6rdig' : 'Marker som f\u00e6rdig'}
+        aria-label={subtask.done ? 'Marker som ikke færdig' : 'Marker som færdig'}
         className={[
           'shrink-0 w-5 h-5 rounded-md border flex items-center justify-center transition',
           subtask.done
@@ -142,7 +142,7 @@ export function SubtaskList({ taskId, subtasks }: SubtaskListProps) {
           type="text"
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          placeholder="Tilf\u00f8j underpunkt\u2026"
+          placeholder="Tilføj underpunkt…"
           className="flex-1 bg-slate-800/60 border border-slate-700 focus:border-sky-500 focus:bg-slate-800 outline-none rounded-md px-2.5 py-2 text-sm placeholder:text-slate-500"
           enterKeyHint="done"
           autoCapitalize="sentences"
@@ -151,7 +151,7 @@ export function SubtaskList({ taskId, subtasks }: SubtaskListProps) {
         <button
           type="submit"
           disabled={!value.trim()}
-          aria-label="Tilf\u00f8j underpunkt"
+          aria-label="Tilføj underpunkt"
           className={[
             'shrink-0 p-2 rounded-md border transition',
             value.trim()
