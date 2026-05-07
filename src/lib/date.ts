@@ -6,6 +6,7 @@ import {
   isSameDay,
   startOfWeek,
 } from 'date-fns';
+import { da } from 'date-fns/locale';
 
 /**
  * Format a Date as a local YYYY-MM-DD string. We deliberately do NOT use
@@ -50,7 +51,7 @@ export function dayLabel(index: number, short = false): string {
 }
 
 export function formatDayDate(date: Date): string {
-  return format(date, 'd. LLL');
+  return format(date, 'd. MMM', { locale: da });
 }
 
 export function weekLabel(date: Date): string {

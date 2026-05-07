@@ -27,7 +27,7 @@ export function WeekHeader({
 
   return (
     <header className="safe-top sticky top-0 z-20 bg-slate-950/80 backdrop-blur border-b border-slate-800">
-      <div className="max-w-7xl mx-auto flex items-center gap-2 px-3 py-3">
+      <div className="max-w-[1700px] mx-auto flex items-center gap-2 px-3 py-3">
         <button
           type="button"
           onClick={onPrev}

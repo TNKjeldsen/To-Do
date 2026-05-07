@@ -72,7 +72,7 @@ export function WeekView({ reference, onOpenTask, onMoveTask }: WeekViewProps) {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-3 pt-3 pb-24">
+    <div className="mx-auto px-3 pt-3 pb-24 max-w-[1700px]">
       {/* Mobile day tabs */}
       <div className="md:hidden mb-3 -mx-3 px-3 overflow-x-auto no-scrollbar">
         <div className="flex gap-1.5">

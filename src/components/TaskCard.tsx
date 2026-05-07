@@ -58,29 +58,16 @@ export function TaskCard({
       }}
       className={[
         'group relative rounded-lg border bg-slate-800/70 hover:bg-slate-800 active:bg-slate-700/80 transition cursor-pointer select-none',
-        isDragging
-          ? 'border-sky-500/60 shadow-xl'
-          : 'border-slate-700/70',
+        isDragging ? 'border-sky-500/60 shadow-xl' : 'border-slate-700/70',
         task.done ? 'opacity-60' : '',
       ].join(' ')}
     >
-      <div className="flex items-start gap-2 px-2.5 py-2">
-        {dragHandleProps ? (
-          <button
-            type="button"
-            aria-label="Tr\u00e6k for at flytte"
-            {...dragHandleProps}
-            onClick={(e) => e.stopPropagation()}
-            className="hidden md:flex shrink-0 mt-0.5 text-slate-500 hover:text-slate-300 cursor-grab active:cursor-grabbing"
-          >
-            <Icon name="grip" size={16} />
-          </button>
-        ) : null}
-
+      {/* Top row: checkbox + title (title gets full remaining width) */}
+      <div className="flex items-start gap-2 px-2.5 pt-2 pb-1.5">
         <button
           type="button"
           onClick={handleToggle}
-          aria-label={task.done ? 'Marker som ikke f\u00e6rdig' : 'Marker som f\u00e6rdig'}
+          aria-label={task.done ? 'Marker som ikke færdig' : 'Marker som færdig'}
           className={[
             'shrink-0 mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center transition',
             task.done
@@ -94,32 +81,48 @@ export function TaskCard({
         <div className="flex-1 min-w-0">
           <div
             className={[
-              'text-sm break-words',
+              'text-sm leading-snug break-words hyphens-auto',
               task.done ? 'line-through text-slate-400' : 'text-slate-100',
             ].join(' ')}
+            lang="da"
           >
             {task.title}
           </div>
-          {total > 0 ? (
-            <div className="mt-1 text-[11px] text-slate-400">
-              {done}/{total} punkter
-            </div>
-          ) : null}
+        </div>
+      </div>
+
+      {/* Bottom row: progress (left) + actions (right). On desktop the action
+          buttons fade in on hover; on mobile they remain visible because there
+          is no hover. The drag handle only appears on md+ on hover. */}
+      <div className="flex items-center justify-between gap-2 px-2 pb-1.5 min-h-[1.5rem]">
+        <div className="text-[11px] text-slate-400 pl-1 truncate">
+          {total > 0 ? `${done}/${total} punkter` : ''}
         </div>
 
-        <div className="flex items-center gap-0.5 opacity-90">
+        <div className="flex items-center gap-0.5 md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100 transition-opacity">
+          {dragHandleProps ? (
+            <button
+              type="button"
+              aria-label="Træk for at flytte"
+              {...dragHandleProps}
+              onClick={(e) => e.stopPropagation()}
+              className="hidden md:flex p-1.5 rounded-md text-slate-400 hover:text-slate-100 hover:bg-slate-700 cursor-grab active:cursor-grabbing"
+            >
+              <Icon name="grip" size={14} />
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={handleMove}
             aria-label="Flyt opgave"
             className="p-1.5 rounded-md text-slate-400 hover:text-slate-100 hover:bg-slate-700 transition"
           >
-            <Icon name="move" size={15} />
+            <Icon name="move" size={14} />
           </button>
           <button
             type="button"
             onClick={handleDelete}
-            aria-label={confirmDelete ? 'Bekr\u00e6ft sletning' : 'Slet opgave'}
+            aria-label={confirmDelete ? 'Bekræft sletning' : 'Slet opgave'}
             title={confirmDelete ? 'Klik igen for at slette' : 'Slet'}
             className={[
               'p-1.5 rounded-md transition',
@@ -128,7 +131,7 @@ export function TaskCard({
                 : 'text-slate-400 hover:text-red-300 hover:bg-slate-700',
             ].join(' ')}
           >
-            <Icon name="trash" size={15} />
+            <Icon name="trash" size={14} />
           </button>
         </div>
       </div>

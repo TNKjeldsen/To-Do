@@ -62,22 +62,16 @@ export function DayColumn({
       </header>
 
       <ul className="flex flex-col gap-1.5 p-2 min-h-[2.5rem]">
-        {tasks.length === 0 ? (
-          <li className="text-xs text-slate-500 italic px-1 py-1.5">
-            Ingen opgaver
+        {tasks.map((task) => (
+          <li key={task.id}>
+            <DraggableTaskCard
+              task={task}
+              onOpen={onOpenTask}
+              onMove={onMoveTask}
+              enableDrag={enableDnD}
+            />
           </li>
-        ) : (
-          tasks.map((task) => (
-            <li key={task.id}>
-              <DraggableTaskCard
-                task={task}
-                onOpen={onOpenTask}
-                onMove={onMoveTask}
-                enableDrag={enableDnD}
-              />
-            </li>
-          ))
-        )}
+        ))}
       </ul>
 
       <div className="px-2 pb-2">
