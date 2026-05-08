@@ -17,9 +17,13 @@ export interface Task {
   title: string;
   /** Local ISO date string YYYY-MM-DD (no time, no timezone). */
   date: string;
+  /** If true, this task lives in the "no fixed day" list. */
+  unscheduled?: boolean;
   done: boolean;
   /** Sort order within the same day. */
   order: number;
+  /** Recreate on same weekday by rolling date +7 days when completed. */
+  repeatWeekly?: boolean;
   /** ISO timestamp when the task was created. */
   createdAt: string;
   /** ISO timestamp of last modification. */

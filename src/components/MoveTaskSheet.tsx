@@ -26,7 +26,7 @@ export function MoveTaskSheet({ task, onClose }: MoveTaskSheetProps) {
 
   useEffect(() => {
     if (task) {
-      setReference(parseDateKey(task.date));
+      setReference(task.date === 'unscheduled' ? new Date() : parseDateKey(task.date));
     }
   }, [task]);
 
@@ -91,6 +91,29 @@ export function MoveTaskSheet({ task, onClose }: MoveTaskSheetProps) {
         </button>
 
         <ul className="flex flex-col gap-1.5">
+          <li>
+            <button
+              type="button"
+              onClick={() => move('unscheduled')}
+              disabled={task.date === 'unscheduled'}
+              className={[
+                'w-full flex items-center justify-between gap-3 px-3 py-3 rounded-lg border text-left transition',
+                task.date === 'unscheduled'
+                  ? 'bg-slate-800/30 border-slate-800 opacity-60 cursor-not-allowed'
+                  : 'bg-slate-800/60 border-slate-700 hover:bg-slate-700/70 active:bg-slate-700',
+              ].join(' ')}
+            >
+              <div>
+                <div className="font-semibold text-sm">Uden fast dag</div>
+                <div className="text-xs text-slate-400">Gem som fleksibel opgave</div>
+              </div>
+              {task.date === 'unscheduled' ? (
+                <span className="text-[11px] text-slate-500">Nuværende</span>
+              ) : (
+                <Icon name="chevron-right" size={18} className="text-slate-500" />
+              )}
+            </button>
+          </li>
           {days.map((d, i) => {
             const key = toDateKey(d);
             const current = key === task.date;

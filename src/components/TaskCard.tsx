@@ -59,7 +59,7 @@ export function TaskCard({
       className={[
         'group relative rounded-lg border bg-slate-800/70 hover:bg-slate-800 active:bg-slate-700/80 transition cursor-pointer select-none',
         isDragging ? 'border-sky-500/60 shadow-xl' : 'border-slate-700/70',
-        task.done ? 'opacity-60' : '',
+        task.done ? 'opacity-60 task-done-pop' : '',
       ].join(' ')}
     >
       {/* Top row: checkbox + title (title gets full remaining width) */}
@@ -71,7 +71,7 @@ export function TaskCard({
           className={[
             'shrink-0 mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center transition',
             task.done
-              ? 'bg-sky-500 border-sky-500 text-white'
+              ? 'bg-sky-500 border-sky-500 text-white task-check-done'
               : 'border-slate-500 hover:border-slate-300',
           ].join(' ')}
         >

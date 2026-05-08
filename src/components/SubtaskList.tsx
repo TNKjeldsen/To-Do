@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { DndContext, MouseSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import type { Subtask } from '../types';
 import { useDispatch } from '../state/AppStateContext';
 import { Icon } from './Icon';
@@ -34,8 +37,17 @@ function SubtaskRow({ taskId, subtask }: SubtaskRowProps) {
     });
   };
 
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
+    id: subtask.id,
+    data: { subId: subtask.id },
+  });
+
   return (
-    <li className="flex items-center gap-2 py-1.5 px-1 rounded-md hover:bg-slate-800/40">
+    <li
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className="flex items-center gap-2 py-1.5 px-1 rounded-md hover:bg-slate-800/40"
+    >
       <button
         type="button"
         onClick={() => dispatch({ type: 'TOGGLE_SUBTASK', taskId, subId: subtask.id })}
@@ -87,6 +99,17 @@ function SubtaskRow({ taskId, subtask }: SubtaskRowProps) {
 
       <button
         type="button"
+        {...attributes}
+        {...listeners}
+        onClick={(e) => e.stopPropagation()}
+        aria-label="Træk underpunkt"
+        className="shrink-0 p-1 rounded-md text-slate-500 hover:text-slate-200 hover:bg-slate-700 cursor-grab active:cursor-grabbing"
+      >
+        <Icon name="grip" size={14} />
+      </button>
+
+      <button
+        type="button"
         onClick={() => dispatch({ type: 'DELETE_SUBTASK', taskId, subId: subtask.id })}
         aria-label="Slet underpunkt"
         className="shrink-0 p-1 rounded-md text-slate-500 hover:text-red-300 hover:bg-slate-700 transition"
@@ -115,27 +138,42 @@ export function SubtaskList({ taskId, subtasks }: SubtaskListProps) {
     inputRef.current?.focus();
   };
 
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 170, tolerance: 6 } })
+  );
+
+  const sortedSubtasks = subtasks.slice().sort((a, b) => a.order - b.order);
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const toIndex = sortedSubtasks.findIndex((s) => s.id === String(over.id));
+    if (toIndex < 0) return;
+    dispatch({ type: 'REORDER_SUBTASK', taskId, subId: String(active.id), toIndex });
+  };
+
   return (
     <div>
-      <ul className="flex flex-col">
-        {subtasks.length === 0 ? (
-          <li className="text-xs text-slate-500 italic px-1 py-2">
-            Ingen underpunkter endnu
-          </li>
-        ) : (
-          subtasks
-            .slice()
-            .sort((a, b) => a.order - b.order)
-            .map((s) => <SubtaskRow key={s.id} taskId={taskId} subtask={s} />)
-        )}
-      </ul>
+      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+        <SortableContext
+          items={sortedSubtasks.map((s) => s.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <ul className="flex flex-col">
+            {sortedSubtasks.map((s) => (
+              <SubtaskRow key={s.id} taskId={taskId} subtask={s} />
+            ))}
+          </ul>
+        </SortableContext>
+      </DndContext>
 
       <form
         onSubmit={(e) => {
           e.preventDefault();
           submit();
         }}
-        className="mt-2 flex items-center gap-2"
+        className="mt-2"
       >
         <input
           ref={inputRef}
@@ -148,19 +186,6 @@ export function SubtaskList({ taskId, subtasks }: SubtaskListProps) {
           autoCapitalize="sentences"
           autoComplete="off"
         />
-        <button
-          type="submit"
-          disabled={!value.trim()}
-          aria-label="Tilføj underpunkt"
-          className={[
-            'shrink-0 p-2 rounded-md border transition',
-            value.trim()
-              ? 'bg-sky-500 border-sky-500 text-white hover:bg-sky-400'
-              : 'bg-slate-800/60 border-slate-700 text-slate-500',
-          ].join(' ')}
-        >
-          <Icon name="plus" size={16} />
-        </button>
       </form>
     </div>
   );

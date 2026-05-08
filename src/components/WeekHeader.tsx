@@ -25,10 +25,11 @@ export function WeekHeader({
   const monday = startOfMondayWeek(reference);
   const sunday = addDays(monday, 6);
   const range = `${format(monday, 'd. MMM', { locale: da })} – ${format(sunday, 'd. MMM yyyy', { locale: da })}`;
+  const currentDate = format(reference, 'EEEE d. MMMM', { locale: da });
 
   return (
     <header className="safe-top sticky top-0 z-20 bg-slate-950/80 backdrop-blur border-b border-slate-800">
-      <div className="max-w-[1700px] mx-auto px-3 py-2 flex items-center gap-2">
+      <div className="max-w-[1700px] mx-auto px-3 py-2 hidden sm:flex items-center gap-2">
         <button
           type="button"
           onClick={onPrev}
@@ -78,9 +79,50 @@ export function WeekHeader({
         </button>
       </div>
 
-      {/* Mobile-only second row for the workspace toggle, centered. */}
-      <div className="sm:hidden flex justify-center pb-2 px-3">
-        <WorkspaceToggle />
+      <div className="sm:hidden px-3 pb-2">
+        <div className="text-center">
+          <div className="text-sm font-semibold capitalize">{currentDate}</div>
+          <div className="text-xs text-slate-400">{weekLabel(monday)}</div>
+        </div>
+        <div className="mt-2 flex items-center justify-center gap-1">
+          <button
+            type="button"
+            onClick={onPrev}
+            aria-label="Forrige uge"
+            className="p-2 rounded-lg hover:bg-slate-800 active:bg-slate-700 transition"
+          >
+            <Icon name="chevron-left" size={18} />
+          </button>
+          <button
+            type="button"
+            onClick={onToday}
+            aria-label="Gå til denne uge"
+            className="px-3 py-1.5 text-sm rounded-lg flex items-center gap-1.5 hover:bg-slate-800 active:bg-slate-700 transition"
+          >
+            <Icon name="today" size={16} />
+            I dag
+          </button>
+          <button
+            type="button"
+            onClick={onNext}
+            aria-label="Næste uge"
+            className="p-2 rounded-lg hover:bg-slate-800 active:bg-slate-700 transition"
+          >
+            <Icon name="chevron-right" size={18} />
+          </button>
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            aria-label="Indstillinger"
+            className="p-2 rounded-lg hover:bg-slate-800 active:bg-slate-700 transition"
+          >
+            <Icon name="gear" size={18} />
+          </button>
+        </div>
+        <div className="mt-2 flex justify-center">
+          <WorkspaceToggle />
+        </div>
+        <div className="text-[11px] text-slate-400 text-center mt-1 truncate">{range}</div>
       </div>
     </header>
   );

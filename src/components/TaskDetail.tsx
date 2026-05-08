@@ -18,6 +18,7 @@ export function TaskDetail({ taskId, onClose, onMove }: TaskDetailProps) {
   const { state } = useAppState();
   const dispatch = useDispatch();
   const task = taskId ? state.tasks.find((t) => t.id === taskId) ?? null : null;
+  const isUnscheduled = Boolean(task?.unscheduled || task?.date === 'unscheduled');
 
   const [titleDraft, setTitleDraft] = useState('');
   const [editingTitle, setEditingTitle] = useState(false);
@@ -68,11 +69,17 @@ export function TaskDetail({ taskId, onClose, onMove }: TaskDetailProps) {
       title={
         task ? (
           <span className="text-slate-300 font-medium">
-            {dayLabel(((parseDateKey(task.date).getDay() + 6) % 7))}
-            {' · '}
-            <span className="text-slate-400 font-normal">
-              {format(parseDateKey(task.date), 'd. MMMM yyyy', { locale: da })}
-            </span>
+            {isUnscheduled ? (
+              <span className="text-slate-400 font-normal">Uden fast dag</span>
+            ) : (
+              <>
+                {dayLabel(((parseDateKey(task.date).getDay() + 6) % 7))}
+                {' · '}
+                <span className="text-slate-400 font-normal">
+                  {format(parseDateKey(task.date), 'd. MMMM yyyy', { locale: da })}
+                </span>
+              </>
+            )}
           </span>
         ) : (
           ''
@@ -143,6 +150,26 @@ export function TaskDetail({ taskId, onClose, onMove }: TaskDetailProps) {
 
           {/* Footer actions */}
           <div className="border-t border-slate-800 pt-3 mt-2 flex flex-wrap gap-2">
+            {!isUnscheduled ? (
+              <button
+                type="button"
+                onClick={() =>
+                  dispatch({
+                    type: 'UPDATE_TASK',
+                    id: task.id,
+                    patch: { repeatWeekly: !task.repeatWeekly },
+                  })
+                }
+                className={[
+                  'px-3 py-2 rounded-md text-sm',
+                  task.repeatWeekly
+                    ? 'bg-sky-500/15 text-sky-200 border border-sky-500/50'
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-200',
+                ].join(' ')}
+              >
+                {task.repeatWeekly ? 'Gentager ugentligt' : 'Gør ugentlig'}
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => onMove(task)}

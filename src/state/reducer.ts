@@ -11,7 +11,7 @@ export type Action =
   | { type: 'HYDRATE'; data: AppData }
   | { type: 'SET_WORKSPACE'; workspace: WorkspaceId }
   | { type: 'ADD_TASK'; date: string; title: string }
-  | { type: 'UPDATE_TASK'; id: string; patch: Partial<Pick<Task, 'title'>> }
+  | { type: 'UPDATE_TASK'; id: string; patch: Partial<Pick<Task, 'title' | 'repeatWeekly'>> }
   | { type: 'TOGGLE_TASK'; id: string }
   | { type: 'DELETE_TASK'; id: string }
   | { type: 'MOVE_TASK'; id: string; toDate: string; toIndex?: number }
@@ -20,6 +20,7 @@ export type Action =
   | { type: 'UPDATE_SUBTASK'; taskId: string; subId: string; patch: Partial<Pick<Subtask, 'text'>> }
   | { type: 'TOGGLE_SUBTASK'; taskId: string; subId: string }
   | { type: 'DELETE_SUBTASK'; taskId: string; subId: string }
+  | { type: 'REORDER_SUBTASK'; taskId: string; subId: string; toIndex: number }
   | { type: 'IMPORT_REPLACE'; data: AppData }
   | { type: 'CLEAR_ALL' };
 
@@ -75,6 +76,22 @@ function orderForInsert(
   return { order: between, renumber: false };
 }
 
+function orderForSubtaskInsert(
+  list: Subtask[],
+  toIndex: number,
+): { order: number; renumber: boolean } {
+  const len = list.length;
+  const idx = Math.max(0, Math.min(toIndex, len));
+  if (len === 0) return { order: 1000, renumber: false };
+  if (idx === 0) return { order: list[0]!.order - 1000, renumber: false };
+  if (idx === len) return { order: list[len - 1]!.order + 1000, renumber: false };
+  const prev = list[idx - 1]!.order;
+  const next = list[idx]!.order;
+  const between = (prev + next) / 2;
+  if (next - prev < 0.0001) return { order: between, renumber: true };
+  return { order: between, renumber: false };
+}
+
 function renumberDay(
   tasks: Task[],
   date: string,
@@ -106,6 +123,7 @@ const MUTATING_ACTIONS = new Set<Action['type']>([
   'UPDATE_SUBTASK',
   'TOGGLE_SUBTASK',
   'DELETE_SUBTASK',
+  'REORDER_SUBTASK',
 ]);
 
 export function reducer(state: AppData, action: Action): AppData {
@@ -139,8 +157,10 @@ function dataReducer(state: AppData, action: Action): AppData {
         id: newId(),
         title,
         date: action.date,
+        unscheduled: action.date === 'unscheduled',
         done: false,
         order: nextOrder(state, action.date),
+        repeatWeekly: false,
         createdAt: now(),
         updatedAt: now(),
         workspace: state.activeWorkspace,
@@ -172,7 +192,25 @@ function dataReducer(state: AppData, action: Action): AppData {
         ...state,
         tasks: state.tasks.map((t) =>
           t.id === action.id
-            ? { ...t, done: !t.done, updatedAt: now() }
+            ? (() => {
+                const nextDone = !t.done;
+                if (nextDone && t.repeatWeekly && !t.unscheduled) {
+                  // Keep weekly repeating tasks alive by rolling one week forward.
+                  const nextDate = new Date(`${t.date}T00:00:00`);
+                  nextDate.setDate(nextDate.getDate() + 7);
+                  const y = nextDate.getFullYear();
+                  const m = String(nextDate.getMonth() + 1).padStart(2, '0');
+                  const d = String(nextDate.getDate()).padStart(2, '0');
+                  return {
+                    ...t,
+                    done: false,
+                    date: `${y}-${m}-${d}`,
+                    order: nextOrder(state, `${y}-${m}-${d}`),
+                    updatedAt: now(),
+                  };
+                }
+                return { ...t, done: nextDone, updatedAt: now() };
+              })()
             : t
         ),
       };
@@ -197,7 +235,13 @@ function dataReducer(state: AppData, action: Action): AppData {
       );
       let next = state.tasks.map((t) =>
         t.id === task.id
-          ? { ...t, date: action.toDate, order, updatedAt: now() }
+          ? {
+              ...t,
+              date: action.toDate,
+              unscheduled: action.toDate === 'unscheduled',
+              order,
+              updatedAt: now(),
+            }
           : t
       );
       if (renumber) next = renumberDay(next, action.toDate, task.workspace);
@@ -289,6 +333,25 @@ function dataReducer(state: AppData, action: Action): AppData {
           return {
             ...t,
             subtasks: t.subtasks.filter((s) => s.id !== action.subId),
+            updatedAt: now(),
+          };
+        }),
+      };
+
+    case 'REORDER_SUBTASK':
+      return {
+        ...state,
+        tasks: state.tasks.map((t) => {
+          if (t.id !== action.taskId) return t;
+          const moving = t.subtasks.find((s) => s.id === action.subId);
+          if (!moving) return t;
+          const list = t.subtasks
+            .filter((s) => s.id !== action.subId)
+            .sort((a, b) => a.order - b.order);
+          const { order } = orderForSubtaskInsert(list, action.toIndex);
+          return {
+            ...t,
+            subtasks: t.subtasks.map((s) => (s.id === action.subId ? { ...s, order } : s)),
             updatedAt: now(),
           };
         }),

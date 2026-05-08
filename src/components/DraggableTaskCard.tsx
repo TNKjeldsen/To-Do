@@ -1,4 +1,4 @@
-import { useDraggable } from '@dnd-kit/core';
+import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Task } from '../types';
 import { TaskCard } from './TaskCard';
@@ -17,14 +17,15 @@ export function DraggableTaskCard({
   onMove,
   enableDrag,
 }: DraggableTaskCardProps) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
-    data: { task },
+    data: { taskId: task.id, dateKey: task.date },
     disabled: !enableDrag,
   });
 
   const style: React.CSSProperties = {
-    transform: CSS.Translate.toString(transform),
+    transform: CSS.Transform.toString(transform),
+    transition,
     opacity: isDragging ? 0.4 : 1,
   };
 

@@ -1,4 +1,5 @@
 import { useDroppable } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import type { Task } from '../types';
 import {
   dayLabel,
@@ -18,6 +19,7 @@ interface DayColumnProps {
   onOpenTask: (task: Task) => void;
   onMoveTask: (task: Task) => void;
   enableDnD: boolean;
+  compact?: boolean;
 }
 
 export function DayColumn({
@@ -26,6 +28,7 @@ export function DayColumn({
   onOpenTask,
   onMoveTask,
   enableDnD,
+  compact = false,
 }: DayColumnProps) {
   const date = parseDateKey(dateKey);
   const tasks = useTasksByDate(dateKey);
@@ -49,7 +52,8 @@ export function DayColumn({
     >
       <header
         className={[
-          'flex items-baseline justify-between px-3 py-2 border-b',
+          'flex items-baseline justify-between border-b',
+          compact ? 'px-2.5 py-1.5' : 'px-3 py-2',
           today ? 'border-sky-700/40 bg-sky-500/10' : 'border-slate-800',
         ].join(' ')}
       >
@@ -61,20 +65,25 @@ export function DayColumn({
         <span className="text-xs text-slate-400">{formatDayDate(date)}</span>
       </header>
 
-      <ul className="flex flex-col gap-1.5 p-2 min-h-[2.5rem]">
-        {tasks.map((task) => (
-          <li key={task.id}>
-            <DraggableTaskCard
-              task={task}
-              onOpen={onOpenTask}
-              onMove={onMoveTask}
-              enableDrag={enableDnD}
-            />
-          </li>
-        ))}
-      </ul>
+      <SortableContext
+        items={tasks.map((task) => task.id)}
+        strategy={verticalListSortingStrategy}
+      >
+        <ul className={['flex flex-col gap-1.5 min-h-[2.5rem]', compact ? 'p-1.5' : 'p-2'].join(' ')}>
+          {tasks.map((task) => (
+            <li key={task.id}>
+              <DraggableTaskCard
+                task={task}
+                onOpen={onOpenTask}
+                onMove={onMoveTask}
+                enableDrag={enableDnD}
+              />
+            </li>
+          ))}
+        </ul>
+      </SortableContext>
 
-      <div className="px-2 pb-2">
+      <div className={compact ? 'px-1.5 pb-1.5' : 'px-2 pb-2'}>
         <AddTaskInput date={dateKey} />
       </div>
     </section>
