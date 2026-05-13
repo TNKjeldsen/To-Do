@@ -4,7 +4,6 @@ import { da } from 'date-fns/locale';
 import {
   dayLabel,
   isToday,
-  parseDateKey,
   startOfMondayWeek,
   toDateKey,
   weekDays,
@@ -25,9 +24,7 @@ export function MoveTaskSheet({ task, onClose }: MoveTaskSheetProps) {
   const [reference, setReference] = useState<Date>(new Date());
 
   useEffect(() => {
-    if (task) {
-      setReference(task.date === 'unscheduled' ? new Date() : parseDateKey(task.date));
-    }
+    if (task) setReference(new Date());
   }, [task]);
 
   if (!task) {

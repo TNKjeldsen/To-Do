@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { addDays } from 'date-fns';
-import { AppStateProvider } from './state/AppStateContext';
+import { AppStateProvider, useAppState } from './state/AppStateContext';
 import { WeekHeader } from './components/WeekHeader';
 import { WeekView } from './components/WeekView';
 import { TaskDetail } from './components/TaskDetail';
 import { MoveTaskSheet } from './components/MoveTaskSheet';
 import { SettingsSheet } from './components/SettingsSheet';
 import { PWAUpdatePrompt } from './components/PWAUpdatePrompt';
+import { UnscheduledSheet } from './components/UnscheduledSheet';
+import { WorkspaceToggle } from './components/WorkspaceToggle';
 import type { Task } from './types';
 
 function AppShell() {
@@ -14,6 +16,16 @@ function AppShell() {
   const [openTaskId, setOpenTaskId] = useState<string | null>(null);
   const [moveTask, setMoveTask] = useState<Task | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [unscheduledOpen, setUnscheduledOpen] = useState(false);
+
+  const { state } = useAppState();
+  const unscheduledCount = useMemo(
+    () =>
+      state.tasks.filter(
+        (t) => t.workspace === state.activeWorkspace && (t.unscheduled || t.date === 'unscheduled') && !t.done
+      ).length,
+    [state.tasks, state.activeWorkspace]
+  );
 
   return (
     <div className="min-h-full">
@@ -28,6 +40,8 @@ function AppShell() {
         reference={reference}
         onOpenTask={(task) => setOpenTaskId(task.id)}
         onMoveTask={setMoveTask}
+        onOpenUnscheduled={() => setUnscheduledOpen(true)}
+        unscheduledCount={unscheduledCount}
       />
 
       <TaskDetail
@@ -42,6 +56,17 @@ function AppShell() {
       <MoveTaskSheet task={moveTask} onClose={() => setMoveTask(null)} />
 
       <SettingsSheet open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+
+      <UnscheduledSheet
+        open={unscheduledOpen}
+        onClose={() => setUnscheduledOpen(false)}
+        onOpenTask={(task) => setOpenTaskId(task.id)}
+      />
+
+      {/* Mobile footer: workspace toggle */}
+      <div className="sm:hidden fixed bottom-0 left-0 right-0 z-20 bg-slate-950/90 backdrop-blur border-t border-slate-800 safe-bottom flex justify-center py-2">
+        <WorkspaceToggle />
+      </div>
 
       <PWAUpdatePrompt />
     </div>

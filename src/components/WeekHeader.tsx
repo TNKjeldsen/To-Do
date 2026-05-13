@@ -119,9 +119,6 @@ export function WeekHeader({
             <Icon name="gear" size={18} />
           </button>
         </div>
-        <div className="mt-2 flex justify-center">
-          <WorkspaceToggle />
-        </div>
         <div className="text-[11px] text-slate-400 text-center mt-1 truncate">{range}</div>
       </div>
     </header>

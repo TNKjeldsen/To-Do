@@ -11,7 +11,8 @@ export type Action =
   | { type: 'HYDRATE'; data: AppData }
   | { type: 'SET_WORKSPACE'; workspace: WorkspaceId }
   | { type: 'ADD_TASK'; date: string; title: string }
-  | { type: 'UPDATE_TASK'; id: string; patch: Partial<Pick<Task, 'title' | 'repeatWeekly'>> }
+  | { type: 'UPDATE_TASK'; id: string; patch: Partial<Pick<Task, 'title' | 'repeatWeekly' | 'time'>> }
+  | { type: 'ENABLE_REPEAT_WEEKLY'; id: string }
   | { type: 'TOGGLE_TASK'; id: string }
   | { type: 'DELETE_TASK'; id: string }
   | { type: 'MOVE_TASK'; id: string; toDate: string; toIndex?: number }
@@ -115,6 +116,7 @@ function renumberDay(
 const MUTATING_ACTIONS = new Set<Action['type']>([
   'ADD_TASK',
   'UPDATE_TASK',
+  'ENABLE_REPEAT_WEEKLY',
   'TOGGLE_TASK',
   'DELETE_TASK',
   'MOVE_TASK',
@@ -185,6 +187,39 @@ function dataReducer(state: AppData, action: Action): AppData {
             : t
         ),
       };
+    }
+
+    case 'ENABLE_REPEAT_WEEKLY': {
+      const source = state.tasks.find((t) => t.id === action.id);
+      if (!source || source.unscheduled || source.date === 'unscheduled') return state;
+      const updated = state.tasks.map((t) =>
+        t.id === action.id ? { ...t, repeatWeekly: true, updatedAt: now() } : t
+      );
+      const copies: Task[] = [];
+      for (let week = 1; week <= 4; week++) {
+        const nextDate = new Date(`${source.date}T00:00:00`);
+        nextDate.setDate(nextDate.getDate() + week * 7);
+        const y = nextDate.getFullYear();
+        const m = String(nextDate.getMonth() + 1).padStart(2, '0');
+        const d = String(nextDate.getDate()).padStart(2, '0');
+        const dateKey = `${y}-${m}-${d}`;
+        const alreadyExists = updated.some(
+          (t) => t.repeatWeekly && t.date === dateKey && t.title === source.title && t.workspace === source.workspace
+        );
+        if (!alreadyExists) {
+          copies.push({
+            ...source,
+            id: newId(),
+            date: dateKey,
+            repeatWeekly: true,
+            done: false,
+            order: nextOrder({ ...state, tasks: [...updated, ...copies] }, dateKey),
+            createdAt: now(),
+            updatedAt: now(),
+          });
+        }
+      }
+      return { ...state, tasks: [...updated, ...copies] };
     }
 
     case 'TOGGLE_TASK':

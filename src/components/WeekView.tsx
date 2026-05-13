@@ -15,15 +15,16 @@ import type { Task } from '../types';
 import { DayColumn } from './DayColumn';
 import { TaskCard } from './TaskCard';
 import { useAppState, useDispatch } from '../state/AppStateContext';
-import { AddTaskInput } from './AddTaskInput';
 
 interface WeekViewProps {
   reference: Date;
   onOpenTask: (task: Task) => void;
   onMoveTask: (task: Task) => void;
+  onOpenUnscheduled: () => void;
+  unscheduledCount: number;
 }
 
-export function WeekView({ reference, onOpenTask, onMoveTask }: WeekViewProps) {
+export function WeekView({ reference, onOpenTask, onMoveTask, onOpenUnscheduled, unscheduledCount }: WeekViewProps) {
   const days = useMemo(() => weekDays(reference), [reference]);
   const dayKeys = useMemo(() => days.map(toDateKey), [days]);
   const { state } = useAppState();
@@ -33,6 +34,7 @@ export function WeekView({ reference, onOpenTask, onMoveTask }: WeekViewProps) {
   const [activeIdx, setActiveIdx] = useState<number>(todayIndex >= 0 ? todayIndex : 0);
   const safeActive = Math.min(activeIdx, 6);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [touchStartY, setTouchStartY] = useState<number | null>(null);
 
   const activeWorkspace = state.activeWorkspace;
   const tasksPerDay = useMemo(() => {
@@ -93,16 +95,8 @@ export function WeekView({ reference, onOpenTask, onMoveTask }: WeekViewProps) {
     dispatch({ type: 'REORDER_TASK', id: taskId, toIndex });
   };
 
-  const unscheduledTasks = useMemo(
-    () =>
-      state.tasks
-        .filter((t) => t.workspace === activeWorkspace && (t.unscheduled || t.date === 'unscheduled'))
-        .sort((a, b) => a.order - b.order),
-    [state.tasks, activeWorkspace]
-  );
-
   return (
-    <div className="mx-auto px-3 pt-3 pb-24 max-w-[1700px]">
+    <div className="mx-auto px-3 pt-3 pb-36 sm:pb-24 max-w-[1700px]">
       {/* Mobile day tabs */}
       <div className="md:hidden mb-2 -mx-3 px-3 overflow-x-auto no-scrollbar">
         <div className="grid grid-cols-7 gap-1 min-w-full">
@@ -140,28 +134,33 @@ export function WeekView({ reference, onOpenTask, onMoveTask }: WeekViewProps) {
         onDragEnd={handleDragEnd}
         onDragCancel={() => setDraggingTaskId(null)}
       >
-        {/* Mobile: swipeable single day */}
-        <div className="md:hidden">
-          <div
-            onTouchStart={(e) => setTouchStartX(e.changedTouches[0]?.clientX ?? null)}
-            onTouchEnd={(e) => {
-              const endX = e.changedTouches[0]?.clientX;
-              if (touchStartX === null || typeof endX !== 'number') return;
-              const delta = endX - touchStartX;
-              if (Math.abs(delta) < 50) return;
-              if (delta < 0) setActiveIdx((v) => Math.min(6, v + 1));
-              if (delta > 0) setActiveIdx((v) => Math.max(0, v - 1));
-            }}
-          >
-            <DayColumn
-              dateKey={dayKeys[safeActive]!}
-              dayIndex={safeActive}
-              onOpenTask={onOpenTask}
-              onMoveTask={onMoveTask}
-              enableDnD={true}
-              compact
-            />
-          </div>
+        {/* Mobile: swipeable single day — touch handlers on entire mobile block */}
+        <div
+          className="md:hidden"
+          onTouchStart={(e) => {
+            setTouchStartX(e.changedTouches[0]?.clientX ?? null);
+            setTouchStartY(e.changedTouches[0]?.clientY ?? null);
+          }}
+          onTouchEnd={(e) => {
+            const endX = e.changedTouches[0]?.clientX;
+            const endY = e.changedTouches[0]?.clientY;
+            if (touchStartX === null || touchStartY === null || typeof endX !== 'number' || typeof endY !== 'number') return;
+            const deltaX = endX - touchStartX;
+            const deltaY = endY - touchStartY;
+            // Only trigger swipe if horizontal movement dominates
+            if (Math.abs(deltaX) < 50 || Math.abs(deltaY) > Math.abs(deltaX)) return;
+            if (deltaX < 0) setActiveIdx((v) => Math.min(6, v + 1));
+            if (deltaX > 0) setActiveIdx((v) => Math.max(0, v - 1));
+          }}
+        >
+          <DayColumn
+            dateKey={dayKeys[safeActive]!}
+            dayIndex={safeActive}
+            onOpenTask={onOpenTask}
+            onMoveTask={onMoveTask}
+            enableDnD={true}
+            compact
+          />
         </div>
 
         {/* Desktop: 7-day grid with DnD */}
@@ -193,27 +192,25 @@ export function WeekView({ reference, onOpenTask, onMoveTask }: WeekViewProps) {
         </DragOverlay>
       </DndContext>
 
-      <section className="mt-3 md:mt-4 w-full md:max-w-sm">
-        <div className="mb-1 px-1 text-xs uppercase tracking-wider text-slate-400">
-          Uden fast dag
-        </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-2">
-          <ul className="flex flex-wrap gap-1.5 mb-2">
-            {unscheduledTasks.map((task) => (
-              <li key={task.id}>
-                <button
-                  type="button"
-                  onClick={() => onOpenTask(task)}
-                  className="px-2.5 py-1 rounded-full bg-slate-800 border border-slate-700 text-xs hover:bg-slate-700"
-                >
-                  {task.title}
-                </button>
-              </li>
-            ))}
-          </ul>
-          <AddTaskInput date="unscheduled" placeholder="Tilføj hurtig opgave…" />
-        </div>
-      </section>
+      {/* FAB for unscheduled tasks */}
+      <button
+        type="button"
+        onClick={onOpenUnscheduled}
+        aria-label="Løbende opgaver"
+        className="fixed bottom-[4.5rem] sm:bottom-6 left-4 z-30 flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-slate-800 border border-slate-700 shadow-lg hover:bg-slate-700 active:bg-slate-600 transition"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-sky-300">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+        <span className="text-sm text-slate-200">Løbende</span>
+        {unscheduledCount > 0 ? (
+          <span className="min-w-[1.25rem] h-5 flex items-center justify-center rounded-full bg-sky-500 text-[11px] font-semibold text-white px-1">
+            {unscheduledCount}
+          </span>
+        ) : null}
+      </button>
     </div>
   );
 }

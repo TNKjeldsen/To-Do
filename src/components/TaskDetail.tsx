@@ -148,18 +148,51 @@ export function TaskDetail({ taskId, onClose, onMove }: TaskDetailProps) {
             <SubtaskList taskId={task.id} subtasks={task.subtasks} />
           </section>
 
+          {/* Time field */}
+          {!isUnscheduled ? (
+            <div className="flex items-center gap-3">
+              <label className="text-xs uppercase tracking-wider text-slate-400 font-semibold shrink-0">
+                Klokkeslet
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="time"
+                  value={task.time ?? ''}
+                  onChange={(e) =>
+                    dispatch({
+                      type: 'UPDATE_TASK',
+                      id: task.id,
+                      patch: { time: e.target.value || undefined },
+                    })
+                  }
+                  className="bg-slate-800 border border-slate-700 rounded-md px-2 py-1 text-sm text-slate-100 outline-none focus:border-sky-500/60 [color-scheme:dark]"
+                />
+                {task.time ? (
+                  <button
+                    type="button"
+                    onClick={() => dispatch({ type: 'UPDATE_TASK', id: task.id, patch: { time: undefined } })}
+                    className="text-xs text-slate-500 hover:text-slate-300 transition"
+                    aria-label="Fjern klokkeslet"
+                  >
+                    Fjern
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
           {/* Footer actions */}
           <div className="border-t border-slate-800 pt-3 mt-2 flex flex-wrap gap-2">
             {!isUnscheduled ? (
               <button
                 type="button"
-                onClick={() =>
-                  dispatch({
-                    type: 'UPDATE_TASK',
-                    id: task.id,
-                    patch: { repeatWeekly: !task.repeatWeekly },
-                  })
-                }
+                onClick={() => {
+                  if (task.repeatWeekly) {
+                    dispatch({ type: 'UPDATE_TASK', id: task.id, patch: { repeatWeekly: false } });
+                  } else {
+                    dispatch({ type: 'ENABLE_REPEAT_WEEKLY', id: task.id });
+                  }
+                }}
                 className={[
                   'px-3 py-2 rounded-md text-sm',
                   task.repeatWeekly

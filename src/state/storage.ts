@@ -62,6 +62,7 @@ export function validateAppData(input: unknown): AppData | null {
       done: Boolean(t.done),
       order: typeof t.order === 'number' ? t.order : tasks.length * 1000 + 1000,
       repeatWeekly: Boolean(t.repeatWeekly),
+      ...(typeof t.time === 'string' && /^\d{2}:\d{2}$/.test(t.time) ? { time: t.time } : {}),
       createdAt: typeof t.createdAt === 'string' ? t.createdAt : new Date().toISOString(),
       updatedAt: typeof t.updatedAt === 'string' ? t.updatedAt : new Date().toISOString(),
       workspace: asWorkspace(t.workspace),

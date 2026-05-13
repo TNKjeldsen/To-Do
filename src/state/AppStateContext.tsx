@@ -262,7 +262,15 @@ export function useTasksByDate(date: string) {
     () =>
       state.tasks
         .filter((t) => t.date === date && t.workspace === ws)
-        .sort((a, b) => a.order - b.order),
+        .sort((a, b) => {
+          // Done tasks always go to the bottom
+          if (a.done !== b.done) return a.done ? 1 : -1;
+          // Tasks with a time come first, sorted by time
+          if (a.time && b.time) return a.time.localeCompare(b.time);
+          if (a.time) return -1;
+          if (b.time) return 1;
+          return a.order - b.order;
+        }),
     [state.tasks, date, ws]
   );
 }

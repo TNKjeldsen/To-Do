@@ -24,6 +24,8 @@ export interface Task {
   order: number;
   /** Recreate on same weekday by rolling date +7 days when completed. */
   repeatWeekly?: boolean;
+  /** Optional time of day in HH:MM format. */
+  time?: string;
   /** ISO timestamp when the task was created. */
   createdAt: string;
   /** ISO timestamp of last modification. */

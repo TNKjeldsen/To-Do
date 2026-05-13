@@ -95,7 +95,10 @@ export function TaskCard({
           buttons fade in on hover; on mobile they remain visible because there
           is no hover. The drag handle only appears on md+ on hover. */}
       <div className="flex items-center justify-between gap-2 px-2 pb-1.5 min-h-[1.5rem]">
-        <div className="text-[11px] text-slate-400 pl-1 truncate">
+        <div className="text-[11px] text-slate-400 pl-1 truncate flex items-center gap-1.5">
+          {task.time ? (
+            <span className="text-sky-300/80">{task.time}</span>
+          ) : null}
           {total > 0 ? `${done}/${total} punkter` : ''}
         </div>
 
