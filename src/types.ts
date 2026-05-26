@@ -35,27 +35,45 @@ export interface Task {
   subtasks: Subtask[];
 }
 
-export interface Trip {
+/**
+ * Driving / commute tracking. The model is built around the typical Danish
+ * kørselsfradrag use-case: report how many days you drove home → work → home,
+ * per month and per year. We default to "drove on every weekday" and let
+ * the user explicitly mark exception days.
+ */
+
+/** A work address with the one-way distance from home and when it took effect. */
+export interface WorkAddress {
   id: string;
-  /** Local ISO date YYYY-MM-DD. */
-  date: string;
-  /** Free-form start location, e.g. "Hjem". */
+  /** Friendly label, e.g. "Hovedkontor" or street address. */
+  label: string;
+  /** One-way distance from home in km. Round trip is 2 × this value. */
+  oneWayKm: number;
+  /** Effective from this YYYY-MM-DD (inclusive). Use the earliest date for the
+   *  first address. When the job moves, add a new entry with the move date. */
   from: string;
-  /** Free-form destination, e.g. "Kunde Aalborg". */
-  to: string;
-  /** Distance in km (one-way, as registered). */
-  km: number;
-  /** Purpose / description, e.g. "Kundemøde". */
-  purpose: string;
-  /** Optional free-text note. */
-  note?: string;
-  /** Workspace this trip belongs to. */
-  workspace: WorkspaceId;
-  createdAt: string;
-  updatedAt: string;
 }
 
-export const SCHEMA_VERSION = 4 as const;
+export type ExclusionReason = 'sick' | 'wfh' | 'vacation' | 'holiday' | 'other';
+
+/** A weekday on which the user did NOT drive home → work → home. */
+export interface DrivingExclusion {
+  /** YYYY-MM-DD */
+  date: string;
+  reason: ExclusionReason;
+  note?: string;
+}
+
+export interface DrivingData {
+  /** Optional free-text home address (informational, not used in math). */
+  homeAddress?: string;
+  /** Ordered list of work addresses by their `from` date. */
+  workAddresses: WorkAddress[];
+  /** Days the user did not drive (sick / WFH / holiday / etc.). */
+  exclusions: DrivingExclusion[];
+}
+
+export const SCHEMA_VERSION = 5 as const;
 
 export interface AppData {
   schemaVersion: typeof SCHEMA_VERSION;
@@ -65,7 +83,7 @@ export interface AppData {
    *  decide whether the local or remote version wins (last-write-wins). */
   lastModified: number;
   tasks: Task[];
-  trips: Trip[];
+  driving: DrivingData;
   exportedAt?: string;
 }
 

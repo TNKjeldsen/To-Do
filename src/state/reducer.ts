@@ -3,9 +3,11 @@ import { parseTitleTime } from '../lib/parseTitle';
 import {
   SCHEMA_VERSION,
   type AppData,
+  type DrivingExclusion,
+  type ExclusionReason,
   type Subtask,
   type Task,
-  type Trip,
+  type WorkAddress,
   type WorkspaceId,
 } from '../types';
 
@@ -24,9 +26,12 @@ export type Action =
   | { type: 'TOGGLE_SUBTASK'; taskId: string; subId: string }
   | { type: 'DELETE_SUBTASK'; taskId: string; subId: string }
   | { type: 'REORDER_SUBTASK'; taskId: string; subId: string; toIndex: number }
-  | { type: 'ADD_TRIP'; trip: Omit<Trip, 'id' | 'createdAt' | 'updatedAt' | 'workspace'> }
-  | { type: 'UPDATE_TRIP'; id: string; patch: Partial<Omit<Trip, 'id' | 'workspace' | 'createdAt' | 'updatedAt'>> }
-  | { type: 'DELETE_TRIP'; id: string }
+  | { type: 'SET_HOME_ADDRESS'; address: string }
+  | { type: 'ADD_WORK_ADDRESS'; address: Omit<WorkAddress, 'id'> }
+  | { type: 'UPDATE_WORK_ADDRESS'; id: string; patch: Partial<Omit<WorkAddress, 'id'>> }
+  | { type: 'DELETE_WORK_ADDRESS'; id: string }
+  | { type: 'SET_EXCLUSION'; date: string; reason: ExclusionReason; note?: string }
+  | { type: 'REMOVE_EXCLUSION'; date: string }
   | { type: 'IMPORT_REPLACE'; data: AppData }
   | { type: 'CLEAR_ALL' };
 
@@ -36,7 +41,7 @@ export function emptyState(): AppData {
     activeWorkspace: 'private',
     lastModified: Date.now(),
     tasks: [],
-    trips: [],
+    driving: { workAddresses: [], exclusions: [] },
   };
 }
 
@@ -132,9 +137,12 @@ const MUTATING_ACTIONS = new Set<Action['type']>([
   'TOGGLE_SUBTASK',
   'DELETE_SUBTASK',
   'REORDER_SUBTASK',
-  'ADD_TRIP',
-  'UPDATE_TRIP',
-  'DELETE_TRIP',
+  'SET_HOME_ADDRESS',
+  'ADD_WORK_ADDRESS',
+  'UPDATE_WORK_ADDRESS',
+  'DELETE_WORK_ADDRESS',
+  'SET_EXCLUSION',
+  'REMOVE_EXCLUSION',
 ]);
 
 /** Add 7 days to a YYYY-MM-DD string. Uses local time. */
@@ -429,51 +437,83 @@ function dataReducer(state: AppData, action: Action): AppData {
         }),
       };
 
-    case 'ADD_TRIP': {
-      const km = Number.isFinite(action.trip.km) ? Math.max(0, action.trip.km) : 0;
-      const trip: Trip = {
-        id: newId(),
-        date: action.trip.date,
-        from: action.trip.from.trim(),
-        to: action.trip.to.trim(),
-        km,
-        purpose: action.trip.purpose.trim(),
-        ...(action.trip.note && action.trip.note.trim()
-          ? { note: action.trip.note.trim() }
-          : {}),
-        workspace: state.activeWorkspace,
-        createdAt: now(),
-        updatedAt: now(),
-      };
-      return { ...state, trips: [...state.trips, trip] };
+    case 'SET_HOME_ADDRESS': {
+      const trimmed = action.address.trim();
+      const next = { ...state.driving };
+      if (trimmed) next.homeAddress = trimmed;
+      else delete next.homeAddress;
+      return { ...state, driving: next };
     }
 
-    case 'UPDATE_TRIP': {
+    case 'ADD_WORK_ADDRESS': {
+      const km = Number.isFinite(action.address.oneWayKm)
+        ? Math.max(0, action.address.oneWayKm)
+        : 0;
+      const wa: WorkAddress = {
+        id: newId(),
+        label: action.address.label.trim(),
+        oneWayKm: km,
+        from: action.address.from,
+      };
       return {
         ...state,
-        trips: state.trips.map((t) => {
-          if (t.id !== action.id) return t;
-          const patch = action.patch;
-          const next: Trip = { ...t, updatedAt: now() };
-          if (typeof patch.date === 'string') next.date = patch.date;
-          if (typeof patch.from === 'string') next.from = patch.from.trim();
-          if (typeof patch.to === 'string') next.to = patch.to.trim();
-          if (typeof patch.km === 'number' && Number.isFinite(patch.km)) {
-            next.km = Math.max(0, patch.km);
-          }
-          if (typeof patch.purpose === 'string') next.purpose = patch.purpose.trim();
-          if (patch.note !== undefined) {
-            const trimmed = patch.note?.trim();
-            if (trimmed) next.note = trimmed;
-            else delete next.note;
-          }
-          return next;
-        }),
+        driving: { ...state.driving, workAddresses: [...state.driving.workAddresses, wa] },
       };
     }
 
-    case 'DELETE_TRIP':
-      return { ...state, trips: state.trips.filter((t) => t.id !== action.id) };
+    case 'UPDATE_WORK_ADDRESS': {
+      return {
+        ...state,
+        driving: {
+          ...state.driving,
+          workAddresses: state.driving.workAddresses.map((w) => {
+            if (w.id !== action.id) return w;
+            const next: WorkAddress = { ...w };
+            if (typeof action.patch.label === 'string') next.label = action.patch.label.trim();
+            if (
+              typeof action.patch.oneWayKm === 'number' &&
+              Number.isFinite(action.patch.oneWayKm)
+            ) {
+              next.oneWayKm = Math.max(0, action.patch.oneWayKm);
+            }
+            if (typeof action.patch.from === 'string') next.from = action.patch.from;
+            return next;
+          }),
+        },
+      };
+    }
+
+    case 'DELETE_WORK_ADDRESS':
+      return {
+        ...state,
+        driving: {
+          ...state.driving,
+          workAddresses: state.driving.workAddresses.filter((w) => w.id !== action.id),
+        },
+      };
+
+    case 'SET_EXCLUSION': {
+      const existing = state.driving.exclusions.find((e) => e.date === action.date);
+      const trimmedNote = action.note?.trim();
+      const entry: DrivingExclusion = {
+        date: action.date,
+        reason: action.reason,
+        ...(trimmedNote ? { note: trimmedNote } : {}),
+      };
+      const next = existing
+        ? state.driving.exclusions.map((e) => (e.date === action.date ? entry : e))
+        : [...state.driving.exclusions, entry];
+      return { ...state, driving: { ...state.driving, exclusions: next } };
+    }
+
+    case 'REMOVE_EXCLUSION':
+      return {
+        ...state,
+        driving: {
+          ...state.driving,
+          exclusions: state.driving.exclusions.filter((e) => e.date !== action.date),
+        },
+      };
 
     default:
       return state;

@@ -17,8 +17,12 @@ ingen konto, ingen backend, ingen tracking.
 - Markér opgaver / underpunkter som færdige
 - Ugentlige opgaver — markeres som færdige uden at flytte; næste uges kopi
   oprettes automatisk så kæden fortsætter
-- **Kørsels­registrering** — log ture med dato, rute, km og formål, månedlige
-  totaler og CSV-eksport (Skat / regnskab)
+- **Kørsels­registrering** (kun i Arbejde-workspace) — hjem ↔ arbejde tælles
+  automatisk for alle hverdage (helligdage og weekender springes over).
+  Marker fraværsdage (sygdom, hjemmearbejde, ferie) med ét klik. Understøtter
+  adresseskift midt i året (fx jobskifte) ved at lade flere arbejdsadresser
+  have hver sin "gyldig fra"-dato. Årsoversigt + CSV-eksport klar til
+  Skat-indberetning.
 - JSON eksport / import for manuel backup eller flytning mellem enheder
 - PWA — kan installeres på iPhone hjemmeskærm og fungerer offline
 
@@ -150,25 +154,31 @@ interface Task {
   subtasks: Subtask[];
 }
 
-interface Trip {
+interface WorkAddress {
   id: string;
+  label: string;
+  oneWayKm: number;
+  from: string;        // YYYY-MM-DD effective from this date
+}
+
+interface DrivingExclusion {
   date: string;        // YYYY-MM-DD
-  from: string;
-  to: string;
-  km: number;
-  purpose: string;
+  reason: 'sick' | 'wfh' | 'vacation' | 'holiday' | 'other';
   note?: string;
-  workspace: 'private' | 'work';
-  createdAt: string;
-  updatedAt: string;
+}
+
+interface DrivingData {
+  homeAddress?: string;
+  workAddresses: WorkAddress[];
+  exclusions: DrivingExclusion[];
 }
 
 interface AppData {
-  schemaVersion: 4;
+  schemaVersion: 5;
   activeWorkspace: 'private' | 'work';
   lastModified: number;
   tasks: Task[];
-  trips: Trip[];
+  driving: DrivingData;
   exportedAt?: string;
 }
 ```

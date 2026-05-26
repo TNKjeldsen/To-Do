@@ -6,6 +6,7 @@ import {
 } from '../lib/date';
 import { Icon } from './Icon';
 import { WorkspaceToggle } from './WorkspaceToggle';
+import { useActiveWorkspace } from '../state/AppStateContext';
 
 interface WeekHeaderProps {
   reference: Date;
@@ -24,6 +25,7 @@ export function WeekHeader({
   onOpenSettings,
   onOpenDriving,
 }: WeekHeaderProps) {
+  const isWork = useActiveWorkspace() === 'work';
   const monday = startOfMondayWeek(reference);
   const sunday = addDays(monday, 6);
   const range = `${format(monday, 'd. MMM', { locale: da })} – ${format(sunday, 'd. MMM yyyy', { locale: da })}`;
@@ -71,15 +73,17 @@ export function WeekHeader({
           <WorkspaceToggle />
         </div>
 
-        <button
-          type="button"
-          onClick={onOpenDriving}
-          aria-label="Kørsel"
-          title="Kørsel"
-          className="p-2 rounded-lg hover:bg-slate-800 active:bg-slate-700 transition"
-        >
-          <Icon name="car" size={20} />
-        </button>
+        {isWork ? (
+          <button
+            type="button"
+            onClick={onOpenDriving}
+            aria-label="Kørsel"
+            title="Kørsel"
+            className="p-2 rounded-lg hover:bg-slate-800 active:bg-slate-700 transition"
+          >
+            <Icon name="car" size={20} />
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={onOpenSettings}
@@ -121,14 +125,16 @@ export function WeekHeader({
           >
             <Icon name="chevron-right" size={18} />
           </button>
-          <button
-            type="button"
-            onClick={onOpenDriving}
-            aria-label="Kørsel"
-            className="p-2 rounded-lg hover:bg-slate-800 active:bg-slate-700 transition"
-          >
-            <Icon name="car" size={18} />
-          </button>
+          {isWork ? (
+            <button
+              type="button"
+              onClick={onOpenDriving}
+              aria-label="Kørsel"
+              className="p-2 rounded-lg hover:bg-slate-800 active:bg-slate-700 transition"
+            >
+              <Icon name="car" size={18} />
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={onOpenSettings}
