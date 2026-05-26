@@ -3,8 +3,10 @@ import {
   DndContext,
   DragOverlay,
   KeyboardSensor,
+  MeasuringStrategy,
   MouseSensor,
   TouchSensor,
+  closestCenter,
   useDroppable,
   useSensor,
   useSensors,
@@ -25,6 +27,9 @@ interface DayTabProps {
   dayNumber: number;
   count: number;
   draggingActive: boolean;
+  /** Disable the underlying droppable (e.g. on desktop where the tab strip
+   *  is hidden via CSS) so it doesn't compete with the day columns. */
+  droppableDisabled: boolean;
   onClick: () => void;
 }
 
@@ -36,11 +41,13 @@ function DayTab({
   dayNumber,
   count,
   draggingActive,
+  droppableDisabled,
   onClick,
 }: DayTabProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: `tab-${dateKey}`,
     data: { dateKey },
+    disabled: droppableDisabled,
   });
   return (
     <button
@@ -86,6 +93,22 @@ export function WeekView({ reference, onOpenTask, onMoveTask, onOpenUnscheduled,
   const safeActive = Math.min(activeIdx, 6);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [touchStartY, setTouchStartY] = useState<number | null>(null);
+
+  // Track whether we're rendering the desktop (md+) layout. We need this in JS
+  // (not just CSS) so we can disable the mobile day-tab droppables on desktop
+  // where they would otherwise register as 0×0 drop targets at offset (0, 0)
+  // and confuse the closestCenter collision detection.
+  const [isDesktop, setIsDesktop] = useState<boolean>(
+    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(min-width: 768px)');
+    const update = () => setIsDesktop(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
 
   const activeWorkspace = state.activeWorkspace;
   const tasksPerDay = useMemo(() => {
@@ -192,69 +215,92 @@ export function WeekView({ reference, onOpenTask, onMoveTask, onOpenUnscheduled,
   return (
     <div className="mx-auto px-3 pt-3 pb-36 sm:pb-24 max-w-[1700px]">
       <DndContext
+        // Use closestCenter so dropping near an empty column (which shrinks
+        // after its task moves away) still resolves to that column — the
+        // stricter default rectIntersection often misses these targets.
+        collisionDetection={closestCenter}
+        // Force droppables to be re-measured on every render. With the
+        // default WhileDragging strategy, column rects can go stale after
+        // a move (e.g. Tirsdag→Torsdag leaves Tirsdag empty/shorter), so
+        // a subsequent drop on the source column was getting "no drop".
+        measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
         sensors={sensors}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         onDragCancel={resetDragState}
       >
-        {/* Mobile day tabs (also act as drop targets so you can long-press a
-            task and drop it on another day). */}
-        <div className="md:hidden mb-2 -mx-3 px-3 overflow-x-auto no-scrollbar">
-          <div className="grid grid-cols-7 gap-1 min-w-full">
-            {days.map((d, i) => (
-              <DayTab
-                key={dayKeys[i]}
-                dateKey={dayKeys[i]!}
-                active={i === safeActive}
-                today={isToday(d)}
-                short={dayLabel(i, true)}
-                dayNumber={d.getDate()}
-                count={tasksPerDay[i] ?? 0}
-                draggingActive={draggingTaskId !== null}
-                onClick={() => setActiveIdx(i)}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Mobile: swipeable single day — swipe is disabled while dragging so
-            it doesn't fight with drag-and-drop. */}
-        <div
-          className="md:hidden"
-          onTouchStart={(e) => {
-            if (draggingTaskId !== null) return;
-            setTouchStartX(e.changedTouches[0]?.clientX ?? null);
-            setTouchStartY(e.changedTouches[0]?.clientY ?? null);
-          }}
-          onTouchEnd={(e) => {
-            const endX = e.changedTouches[0]?.clientX;
-            const endY = e.changedTouches[0]?.clientY;
-            if (touchStartX === null || touchStartY === null || typeof endX !== 'number' || typeof endY !== 'number') return;
-            const deltaX = endX - touchStartX;
-            const deltaY = endY - touchStartY;
-            // Only trigger swipe if horizontal movement dominates
-            if (Math.abs(deltaX) < 50 || Math.abs(deltaY) > Math.abs(deltaX)) return;
-            if (deltaX < 0) setActiveIdx((v) => Math.min(6, v + 1));
-            if (deltaX > 0) setActiveIdx((v) => Math.max(0, v - 1));
-          }}
-        >
-          <DayColumn
-            dateKey={dayKeys[safeActive]!}
-            dayIndex={safeActive}
-            onOpenTask={onOpenTask}
-            onMoveTask={onMoveTask}
-            enableDnD={true}
-            compact
-          />
-          {draggingTaskId !== null ? (
-            <div className="mt-2 text-center text-[11px] text-sky-300/80">
-              Slip på en anden dag øverst for at flytte
+        {/* We render *either* the mobile layout *or* the desktop grid — never
+            both at once — because each DayColumn / DraggableTaskCard registers
+            with dnd-kit using a stable id (`day-<date>` / task id). If both
+            layouts were mounted (with one hidden via CSS), dnd-kit would see
+            duplicate ids and the hidden 0×0 element would silently steal the
+            registration after a re-render, causing drops to stop working
+            until you refreshed the page. */}
+        {!isDesktop ? (
+          <>
+            {/* Mobile day tabs (also act as drop targets so you can long-press
+                a task and drop it on another day). */}
+            <div className="mb-2 -mx-3 px-3 overflow-x-auto no-scrollbar">
+              <div className="grid grid-cols-7 gap-1 min-w-full">
+                {days.map((d, i) => (
+                  <DayTab
+                    key={dayKeys[i]}
+                    dateKey={dayKeys[i]!}
+                    active={i === safeActive}
+                    today={isToday(d)}
+                    short={dayLabel(i, true)}
+                    dayNumber={d.getDate()}
+                    count={tasksPerDay[i] ?? 0}
+                    draggingActive={draggingTaskId !== null}
+                    droppableDisabled={false}
+                    onClick={() => setActiveIdx(i)}
+                  />
+                ))}
+              </div>
             </div>
-          ) : null}
-        </div>
 
-        {/* Desktop: 7-day grid with DnD */}
-        <div className="hidden md:block">
+            {/* Swipeable single day — swipe is disabled while dragging so it
+                doesn't fight with drag-and-drop. */}
+            <div
+              onTouchStart={(e) => {
+                if (draggingTaskId !== null) return;
+                setTouchStartX(e.changedTouches[0]?.clientX ?? null);
+                setTouchStartY(e.changedTouches[0]?.clientY ?? null);
+              }}
+              onTouchEnd={(e) => {
+                const endX = e.changedTouches[0]?.clientX;
+                const endY = e.changedTouches[0]?.clientY;
+                if (
+                  touchStartX === null ||
+                  touchStartY === null ||
+                  typeof endX !== 'number' ||
+                  typeof endY !== 'number'
+                ) {
+                  return;
+                }
+                const deltaX = endX - touchStartX;
+                const deltaY = endY - touchStartY;
+                if (Math.abs(deltaX) < 50 || Math.abs(deltaY) > Math.abs(deltaX)) return;
+                if (deltaX < 0) setActiveIdx((v) => Math.min(6, v + 1));
+                if (deltaX > 0) setActiveIdx((v) => Math.max(0, v - 1));
+              }}
+            >
+              <DayColumn
+                dateKey={dayKeys[safeActive]!}
+                dayIndex={safeActive}
+                onOpenTask={onOpenTask}
+                onMoveTask={onMoveTask}
+                enableDnD={true}
+                compact
+              />
+              {draggingTaskId !== null ? (
+                <div className="mt-2 text-center text-[11px] text-sky-300/80">
+                  Slip på en anden dag øverst for at flytte
+                </div>
+              ) : null}
+            </div>
+          </>
+        ) : (
           <div className="grid grid-cols-7 gap-3">
             {days.map((_, i) => (
               <DayColumn
@@ -267,7 +313,7 @@ export function WeekView({ reference, onOpenTask, onMoveTask, onOpenUnscheduled,
               />
             ))}
           </div>
-        </div>
+        )}
         <DragOverlay dropAnimation={null}>
           {draggingTask ? (
             <div
