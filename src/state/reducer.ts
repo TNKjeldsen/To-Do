@@ -1,9 +1,11 @@
 import { newId } from '../lib/id';
+import { parseTitleTime } from '../lib/parseTitle';
 import {
   SCHEMA_VERSION,
   type AppData,
   type Subtask,
   type Task,
+  type Trip,
   type WorkspaceId,
 } from '../types';
 
@@ -22,6 +24,9 @@ export type Action =
   | { type: 'TOGGLE_SUBTASK'; taskId: string; subId: string }
   | { type: 'DELETE_SUBTASK'; taskId: string; subId: string }
   | { type: 'REORDER_SUBTASK'; taskId: string; subId: string; toIndex: number }
+  | { type: 'ADD_TRIP'; trip: Omit<Trip, 'id' | 'createdAt' | 'updatedAt' | 'workspace'> }
+  | { type: 'UPDATE_TRIP'; id: string; patch: Partial<Omit<Trip, 'id' | 'workspace' | 'createdAt' | 'updatedAt'>> }
+  | { type: 'DELETE_TRIP'; id: string }
   | { type: 'IMPORT_REPLACE'; data: AppData }
   | { type: 'CLEAR_ALL' };
 
@@ -31,6 +36,7 @@ export function emptyState(): AppData {
     activeWorkspace: 'private',
     lastModified: Date.now(),
     tasks: [],
+    trips: [],
   };
 }
 
@@ -126,7 +132,20 @@ const MUTATING_ACTIONS = new Set<Action['type']>([
   'TOGGLE_SUBTASK',
   'DELETE_SUBTASK',
   'REORDER_SUBTASK',
+  'ADD_TRIP',
+  'UPDATE_TRIP',
+  'DELETE_TRIP',
 ]);
+
+/** Add 7 days to a YYYY-MM-DD string. Uses local time. */
+function addWeek(dateKey: string): string {
+  const d = new Date(`${dateKey}T00:00:00`);
+  d.setDate(d.getDate() + 7);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 
 export function reducer(state: AppData, action: Action): AppData {
   const next = dataReducer(state, action);
@@ -153,16 +172,23 @@ function dataReducer(state: AppData, action: Action): AppData {
       return { ...state, activeWorkspace: action.workspace };
 
     case 'ADD_TASK': {
-      const title = action.title.trim();
-      if (!title) return state;
+      const raw = action.title.trim();
+      if (!raw) return state;
+      // Auto-extract trailing time from titles like "Vaske tøj 11:00" or
+      // "Møde kl 9". Only meaningful for scheduled tasks.
+      const isUnscheduled = action.date === 'unscheduled';
+      const { title, time } = isUnscheduled
+        ? { title: raw, time: undefined as string | undefined }
+        : parseTitleTime(raw);
       const task: Task = {
         id: newId(),
         title,
         date: action.date,
-        unscheduled: action.date === 'unscheduled',
+        unscheduled: isUnscheduled,
         done: false,
         order: nextOrder(state, action.date),
         repeatWeekly: false,
+        ...(time ? { time } : {}),
         createdAt: now(),
         updatedAt: now(),
         workspace: state.activeWorkspace,
@@ -222,33 +248,44 @@ function dataReducer(state: AppData, action: Action): AppData {
       return { ...state, tasks: [...updated, ...copies] };
     }
 
-    case 'TOGGLE_TASK':
-      return {
-        ...state,
-        tasks: state.tasks.map((t) =>
-          t.id === action.id
-            ? (() => {
-                const nextDone = !t.done;
-                if (nextDone && t.repeatWeekly && !t.unscheduled) {
-                  // Keep weekly repeating tasks alive by rolling one week forward.
-                  const nextDate = new Date(`${t.date}T00:00:00`);
-                  nextDate.setDate(nextDate.getDate() + 7);
-                  const y = nextDate.getFullYear();
-                  const m = String(nextDate.getMonth() + 1).padStart(2, '0');
-                  const d = String(nextDate.getDate()).padStart(2, '0');
-                  return {
-                    ...t,
-                    done: false,
-                    date: `${y}-${m}-${d}`,
-                    order: nextOrder(state, `${y}-${m}-${d}`),
-                    updatedAt: now(),
-                  };
-                }
-                return { ...t, done: nextDone, updatedAt: now() };
-              })()
-            : t
-        ),
-      };
+    case 'TOGGLE_TASK': {
+      const target = state.tasks.find((t) => t.id === action.id);
+      if (!target) return state;
+      const nextDone = !target.done;
+      const tasksWithToggle = state.tasks.map((t) =>
+        t.id === target.id ? { ...t, done: nextDone, updatedAt: now() } : t
+      );
+      // Weekly task being marked done: keep it in place (the user wants the
+      // completed task to remain visible in this week's card), but ensure
+      // the chain continues by auto-creating next week's copy if it doesn't
+      // already exist.
+      if (nextDone && target.repeatWeekly && !target.unscheduled) {
+        const nextKey = addWeek(target.date);
+        const exists = tasksWithToggle.some(
+          (t) =>
+            t.repeatWeekly &&
+            t.date === nextKey &&
+            t.title === target.title &&
+            t.workspace === target.workspace
+        );
+        if (!exists) {
+          const intermediate = { ...state, tasks: tasksWithToggle };
+          const copy: Task = {
+            ...target,
+            id: newId(),
+            date: nextKey,
+            unscheduled: false,
+            done: false,
+            order: nextOrder(intermediate, nextKey),
+            createdAt: now(),
+            updatedAt: now(),
+            subtasks: target.subtasks.map((s) => ({ ...s, id: newId(), done: false })),
+          };
+          return { ...state, tasks: [...tasksWithToggle, copy] };
+        }
+      }
+      return { ...state, tasks: tasksWithToggle };
+    }
 
     case 'DELETE_TASK':
       return { ...state, tasks: state.tasks.filter((t) => t.id !== action.id) };
@@ -391,6 +428,52 @@ function dataReducer(state: AppData, action: Action): AppData {
           };
         }),
       };
+
+    case 'ADD_TRIP': {
+      const km = Number.isFinite(action.trip.km) ? Math.max(0, action.trip.km) : 0;
+      const trip: Trip = {
+        id: newId(),
+        date: action.trip.date,
+        from: action.trip.from.trim(),
+        to: action.trip.to.trim(),
+        km,
+        purpose: action.trip.purpose.trim(),
+        ...(action.trip.note && action.trip.note.trim()
+          ? { note: action.trip.note.trim() }
+          : {}),
+        workspace: state.activeWorkspace,
+        createdAt: now(),
+        updatedAt: now(),
+      };
+      return { ...state, trips: [...state.trips, trip] };
+    }
+
+    case 'UPDATE_TRIP': {
+      return {
+        ...state,
+        trips: state.trips.map((t) => {
+          if (t.id !== action.id) return t;
+          const patch = action.patch;
+          const next: Trip = { ...t, updatedAt: now() };
+          if (typeof patch.date === 'string') next.date = patch.date;
+          if (typeof patch.from === 'string') next.from = patch.from.trim();
+          if (typeof patch.to === 'string') next.to = patch.to.trim();
+          if (typeof patch.km === 'number' && Number.isFinite(patch.km)) {
+            next.km = Math.max(0, patch.km);
+          }
+          if (typeof patch.purpose === 'string') next.purpose = patch.purpose.trim();
+          if (patch.note !== undefined) {
+            const trimmed = patch.note?.trim();
+            if (trimmed) next.note = trimmed;
+            else delete next.note;
+          }
+          return next;
+        }),
+      };
+    }
+
+    case 'DELETE_TRIP':
+      return { ...state, trips: state.trips.filter((t) => t.id !== action.id) };
 
     default:
       return state;

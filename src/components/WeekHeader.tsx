@@ -13,6 +13,7 @@ interface WeekHeaderProps {
   onNext: () => void;
   onToday: () => void;
   onOpenSettings: () => void;
+  onOpenDriving: () => void;
 }
 
 export function WeekHeader({
@@ -21,6 +22,7 @@ export function WeekHeader({
   onNext,
   onToday,
   onOpenSettings,
+  onOpenDriving,
 }: WeekHeaderProps) {
   const monday = startOfMondayWeek(reference);
   const sunday = addDays(monday, 6);
@@ -71,6 +73,15 @@ export function WeekHeader({
 
         <button
           type="button"
+          onClick={onOpenDriving}
+          aria-label="Kørsel"
+          title="Kørsel"
+          className="p-2 rounded-lg hover:bg-slate-800 active:bg-slate-700 transition"
+        >
+          <Icon name="car" size={20} />
+        </button>
+        <button
+          type="button"
           onClick={onOpenSettings}
           aria-label="Indstillinger"
           className="p-2 rounded-lg hover:bg-slate-800 active:bg-slate-700 transition"
@@ -109,6 +120,14 @@ export function WeekHeader({
             className="p-2 rounded-lg hover:bg-slate-800 active:bg-slate-700 transition"
           >
             <Icon name="chevron-right" size={18} />
+          </button>
+          <button
+            type="button"
+            onClick={onOpenDriving}
+            aria-label="Kørsel"
+            className="p-2 rounded-lg hover:bg-slate-800 active:bg-slate-700 transition"
+          >
+            <Icon name="car" size={18} />
           </button>
           <button
             type="button"

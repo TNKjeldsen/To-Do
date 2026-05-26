@@ -6,6 +6,7 @@ import { WeekView } from './components/WeekView';
 import { TaskDetail } from './components/TaskDetail';
 import { MoveTaskSheet } from './components/MoveTaskSheet';
 import { SettingsSheet } from './components/SettingsSheet';
+import { DrivingSheet } from './components/DrivingSheet';
 import { PWAUpdatePrompt } from './components/PWAUpdatePrompt';
 import { UnscheduledSheet } from './components/UnscheduledSheet';
 import { WorkspaceToggle } from './components/WorkspaceToggle';
@@ -16,6 +17,7 @@ function AppShell() {
   const [openTaskId, setOpenTaskId] = useState<string | null>(null);
   const [moveTask, setMoveTask] = useState<Task | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [drivingOpen, setDrivingOpen] = useState(false);
   const [unscheduledOpen, setUnscheduledOpen] = useState(false);
 
   const { state } = useAppState();
@@ -35,6 +37,7 @@ function AppShell() {
         onNext={() => setReference((d) => addDays(d, 7))}
         onToday={() => setReference(new Date())}
         onOpenSettings={() => setSettingsOpen(true)}
+        onOpenDriving={() => setDrivingOpen(true)}
       />
       <WeekView
         reference={reference}
@@ -56,6 +59,8 @@ function AppShell() {
       <MoveTaskSheet task={moveTask} onClose={() => setMoveTask(null)} />
 
       <SettingsSheet open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+
+      <DrivingSheet open={drivingOpen} onClose={() => setDrivingOpen(false)} />
 
       <UnscheduledSheet
         open={unscheduledOpen}

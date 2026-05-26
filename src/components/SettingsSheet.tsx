@@ -34,6 +34,7 @@ export function SettingsSheet({ open, onClose }: SettingsSheetProps) {
   const subtaskCount = state.tasks.reduce((acc, t) => acc + t.subtasks.length, 0);
   const privateCount = state.tasks.filter((t) => t.workspace === 'private').length;
   const workCount = state.tasks.filter((t) => t.workspace === 'work').length;
+  const tripCount = state.trips.length;
 
   const handleExport = () => {
     downloadBackup(state);
@@ -89,9 +90,13 @@ export function SettingsSheet({ open, onClose }: SettingsSheetProps) {
   const cancelImport = () => setImportPreview({ state: 'idle' });
 
   const handleClearAll = () => {
+    const parts: string[] = [];
+    if (taskCount > 0) parts.push(`${taskCount} opgaver og deres underpunkter`);
+    if (tripCount > 0) parts.push(`${tripCount} kørselsture`);
+    const what = parts.length > 0 ? parts.join(' og ') : 'alle data';
     if (
       window.confirm(
-        `Slet ALLE ${taskCount} opgaver og deres underpunkter? Dette kan ikke fortrydes. Eksportér først hvis du vil beholde en kopi.`
+        `Slet ALLE ${what}? Dette kan ikke fortrydes. Eksportér først hvis du vil beholde en kopi.`
       )
     ) {
       dispatch({ type: 'CLEAR_ALL' });
@@ -124,6 +129,10 @@ export function SettingsSheet({ open, onClose }: SettingsSheetProps) {
               <span className="text-slate-400">Underpunkter: </span>
               <span className="font-semibold">{subtaskCount}</span>
             </div>
+            <div>
+              <span className="text-slate-400">Kørselsture: </span>
+              <span className="font-semibold">{tripCount}</span>
+            </div>
             <div className="mt-1 text-xs text-slate-500">
               Data gemmes lokalt i denne browser (localStorage).
             </div>
@@ -144,10 +153,10 @@ export function SettingsSheet({ open, onClose }: SettingsSheetProps) {
             <button
               type="button"
               onClick={handleExport}
-              disabled={taskCount === 0}
+              disabled={taskCount === 0 && tripCount === 0}
               className={[
                 'px-3 py-2 rounded-md text-sm flex items-center gap-2 transition',
-                taskCount === 0
+                taskCount === 0 && tripCount === 0
                   ? 'bg-slate-800/50 text-slate-500 cursor-not-allowed'
                   : 'bg-sky-500 text-white hover:bg-sky-400',
               ].join(' ')}
@@ -243,10 +252,10 @@ export function SettingsSheet({ open, onClose }: SettingsSheetProps) {
           <button
             type="button"
             onClick={handleClearAll}
-            disabled={taskCount === 0}
+            disabled={taskCount === 0 && tripCount === 0}
             className={[
               'px-3 py-2 rounded-md text-sm flex items-center gap-2 transition',
-              taskCount === 0
+              taskCount === 0 && tripCount === 0
                 ? 'bg-slate-800/50 text-slate-500 cursor-not-allowed'
                 : 'bg-red-500/10 text-red-300 border border-red-500/30 hover:bg-red-500/20',
             ].join(' ')}

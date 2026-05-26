@@ -7,11 +7,18 @@ ingen konto, ingen backend, ingen tracking.
 
 - Ugevisning med datoer (mandag–søndag) og uge-navigation (forrige / i dag / næste)
 - Hurtig oprettelse af opgaver direkte i dagen
+- **Auto-tidspunkt** — skriv fx "Vaske tøj 11:00" eller "Møde kl 9" og klokkeslettet
+  bliver automatisk plukket ud og sat på opgaven
 - Underpunkter pr. opgave (tilføj, redigér, afkryds, slet)
 - Flyt opgaver mellem dage:
   - **Desktop:** drag-and-drop mellem dagskolonner (eller "Flyt til…"-knap)
-  - **Mobil:** "Flyt til…"-knap åbner en bottom sheet med ugedage og uge-navigation
+  - **Mobil:** hold på en opgave (~220 ms) og slip den på en anden dag-fane i toppen,
+    eller brug "Flyt til…"-knappen
 - Markér opgaver / underpunkter som færdige
+- Ugentlige opgaver — markeres som færdige uden at flytte; næste uges kopi
+  oprettes automatisk så kæden fortsætter
+- **Kørsels­registrering** — log ture med dato, rute, km og formål, månedlige
+  totaler og CSV-eksport (Skat / regnskab)
 - JSON eksport / import for manuel backup eller flytning mellem enheder
 - PWA — kan installeres på iPhone hjemmeskærm og fungerer offline
 
@@ -143,9 +150,25 @@ interface Task {
   subtasks: Subtask[];
 }
 
+interface Trip {
+  id: string;
+  date: string;        // YYYY-MM-DD
+  from: string;
+  to: string;
+  km: number;
+  purpose: string;
+  note?: string;
+  workspace: 'private' | 'work';
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface AppData {
-  schemaVersion: 1;
+  schemaVersion: 4;
+  activeWorkspace: 'private' | 'work';
+  lastModified: number;
   tasks: Task[];
+  trips: Trip[];
   exportedAt?: string;
 }
 ```
@@ -154,6 +177,7 @@ interface AppData {
 
 - Reordering af opgaver inden for samme dag (uden at flytte til en anden dag)
   understøttes ikke i v1.
-- Drag-and-drop på mobil er bevidst slået fra for at undgå konflikter med
-  scroll. Brug "Flyt til…"-knappen i stedet.
+- Drag-and-drop på mobil kræver et hold på ~220 ms for at undgå konflikter med
+  scroll. Slip enten på en anden dag-fane (for at flytte mellem dage) eller på
+  en anden opgave i samme dag (for at omarrangere).
 - localStorage har en grænse på ~5–10 MB; det rækker til mange tusinde opgaver.

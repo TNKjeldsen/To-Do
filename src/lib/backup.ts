@@ -8,6 +8,7 @@ export function exportToJSON(data: AppData): string {
     activeWorkspace: data.activeWorkspace,
     lastModified: data.lastModified,
     tasks: data.tasks,
+    trips: data.trips,
     exportedAt: new Date().toISOString(),
   };
   return JSON.stringify(payload, null, 2);

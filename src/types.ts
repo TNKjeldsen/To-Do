@@ -35,7 +35,27 @@ export interface Task {
   subtasks: Subtask[];
 }
 
-export const SCHEMA_VERSION = 3 as const;
+export interface Trip {
+  id: string;
+  /** Local ISO date YYYY-MM-DD. */
+  date: string;
+  /** Free-form start location, e.g. "Hjem". */
+  from: string;
+  /** Free-form destination, e.g. "Kunde Aalborg". */
+  to: string;
+  /** Distance in km (one-way, as registered). */
+  km: number;
+  /** Purpose / description, e.g. "Kundemøde". */
+  purpose: string;
+  /** Optional free-text note. */
+  note?: string;
+  /** Workspace this trip belongs to. */
+  workspace: WorkspaceId;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const SCHEMA_VERSION = 4 as const;
 
 export interface AppData {
   schemaVersion: typeof SCHEMA_VERSION;
@@ -45,6 +65,7 @@ export interface AppData {
    *  decide whether the local or remote version wins (last-write-wins). */
   lastModified: number;
   tasks: Task[];
+  trips: Trip[];
   exportedAt?: string;
 }
 

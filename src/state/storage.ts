@@ -3,6 +3,7 @@ import {
   type AppData,
   type Subtask,
   type Task,
+  type Trip,
   type WorkspaceId,
 } from '../types';
 import { emptyState } from './reducer';
@@ -21,6 +22,8 @@ function asWorkspace(value: unknown, fallback: WorkspaceId = 'private'): Workspa
  *   v1 → v2: tasks gain `workspace`, AppData gains `activeWorkspace`.
  *            Existing tasks default to "private" so the user's data appears
  *            in their (default) Privat workspace.
+ *   v3 → v4: AppData gains `trips` array (mileage / driving log).
+ *            Defaults to an empty list for existing users.
  */
 export function validateAppData(input: unknown): AppData | null {
   if (!input || typeof input !== 'object') return null;
@@ -70,11 +73,36 @@ export function validateAppData(input: unknown): AppData | null {
     });
   }
 
+  const trips: Trip[] = [];
+  if (Array.isArray(obj.trips)) {
+    for (const raw of obj.trips) {
+      if (!raw || typeof raw !== 'object') continue;
+      const t = raw as Record<string, unknown>;
+      if (typeof t.id !== 'string') continue;
+      if (typeof t.date !== 'string') continue;
+      const km =
+        typeof t.km === 'number' && Number.isFinite(t.km) ? Math.max(0, t.km) : 0;
+      trips.push({
+        id: t.id,
+        date: t.date,
+        from: typeof t.from === 'string' ? t.from : '',
+        to: typeof t.to === 'string' ? t.to : '',
+        km,
+        purpose: typeof t.purpose === 'string' ? t.purpose : '',
+        ...(typeof t.note === 'string' && t.note.trim() ? { note: t.note } : {}),
+        workspace: asWorkspace(t.workspace),
+        createdAt: typeof t.createdAt === 'string' ? t.createdAt : new Date().toISOString(),
+        updatedAt: typeof t.updatedAt === 'string' ? t.updatedAt : new Date().toISOString(),
+      });
+    }
+  }
+
   return {
     schemaVersion: SCHEMA_VERSION,
     activeWorkspace,
     lastModified,
     tasks,
+    trips,
   };
 }
 

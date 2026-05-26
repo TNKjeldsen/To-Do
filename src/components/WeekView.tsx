@@ -5,6 +5,7 @@ import {
   KeyboardSensor,
   MouseSensor,
   TouchSensor,
+  useDroppable,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -15,6 +16,56 @@ import type { Task } from '../types';
 import { DayColumn } from './DayColumn';
 import { TaskCard } from './TaskCard';
 import { useAppState, useDispatch } from '../state/AppStateContext';
+
+interface DayTabProps {
+  dateKey: string;
+  active: boolean;
+  today: boolean;
+  short: string;
+  dayNumber: number;
+  count: number;
+  draggingActive: boolean;
+  onClick: () => void;
+}
+
+function DayTab({
+  dateKey,
+  active,
+  today,
+  short,
+  dayNumber,
+  count,
+  draggingActive,
+  onClick,
+}: DayTabProps) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `tab-${dateKey}`,
+    data: { dateKey },
+  });
+  return (
+    <button
+      ref={setNodeRef}
+      type="button"
+      onClick={onClick}
+      aria-current={active ? 'true' : undefined}
+      className={[
+        'px-1 py-1 rounded-md border text-[11px] flex flex-col items-center transition',
+        isOver
+          ? 'bg-sky-500/25 border-sky-400 text-sky-50 ring-2 ring-sky-400/70 scale-105'
+          : active
+            ? 'bg-sky-500/15 border-sky-500/60 text-sky-100'
+            : today
+              ? 'bg-slate-800/40 border-sky-700/40 text-slate-100'
+              : 'bg-slate-800/40 border-slate-700/60 text-slate-300',
+        draggingActive && !isOver ? 'border-dashed' : '',
+      ].join(' ')}
+    >
+      <span className="uppercase tracking-wide">{short}</span>
+      <span className="font-semibold leading-tight">{dayNumber}</span>
+      {count > 0 ? <span className="text-[10px] text-sky-300">{count}</span> : null}
+    </button>
+  );
+}
 
 interface WeekViewProps {
   reference: Date;
@@ -83,6 +134,10 @@ export function WeekView({ reference, onOpenTask, onMoveTask, onOpenUnscheduled,
     if (!task) return;
     if (task.date !== toDate) {
       dispatch({ type: 'MOVE_TASK', id: taskId, toDate });
+      // When dropping onto a different day on mobile, follow the task there
+      // so the user sees the result without an extra tap.
+      const idx = dayKeys.indexOf(toDate);
+      if (idx >= 0) setActiveIdx(idx);
       return;
     }
     const sameDayTasks = state.tasks
@@ -97,47 +152,38 @@ export function WeekView({ reference, onOpenTask, onMoveTask, onOpenUnscheduled,
 
   return (
     <div className="mx-auto px-3 pt-3 pb-36 sm:pb-24 max-w-[1700px]">
-      {/* Mobile day tabs */}
-      <div className="md:hidden mb-2 -mx-3 px-3 overflow-x-auto no-scrollbar">
-        <div className="grid grid-cols-7 gap-1 min-w-full">
-          {days.map((d, i) => {
-            const active = i === safeActive;
-            const isT = isToday(d);
-            const count = tasksPerDay[i] ?? 0;
-            return (
-              <button
-                type="button"
-                key={dayKeys[i]}
-                onClick={() => setActiveIdx(i)}
-                aria-current={active ? 'true' : undefined}
-                className={[
-                  'px-1 py-1 rounded-md border text-[11px] flex flex-col items-center transition',
-                  active
-                    ? 'bg-sky-500/15 border-sky-500/60 text-sky-100'
-                    : isT
-                      ? 'bg-slate-800/40 border-sky-700/40 text-slate-100'
-                      : 'bg-slate-800/40 border-slate-700/60 text-slate-300',
-                ].join(' ')}
-              >
-                <span className="uppercase tracking-wide">{dayLabel(i, true)}</span>
-                <span className="font-semibold leading-tight">{d.getDate()}</span>
-                {count > 0 ? <span className="text-[10px] text-sky-300">{count}</span> : null}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
       <DndContext
         sensors={sensors}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         onDragCancel={() => setDraggingTaskId(null)}
       >
-        {/* Mobile: swipeable single day — touch handlers on entire mobile block */}
+        {/* Mobile day tabs (also act as drop targets so you can long-press a
+            task and drop it on another day). */}
+        <div className="md:hidden mb-2 -mx-3 px-3 overflow-x-auto no-scrollbar">
+          <div className="grid grid-cols-7 gap-1 min-w-full">
+            {days.map((d, i) => (
+              <DayTab
+                key={dayKeys[i]}
+                dateKey={dayKeys[i]!}
+                active={i === safeActive}
+                today={isToday(d)}
+                short={dayLabel(i, true)}
+                dayNumber={d.getDate()}
+                count={tasksPerDay[i] ?? 0}
+                draggingActive={draggingTaskId !== null}
+                onClick={() => setActiveIdx(i)}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Mobile: swipeable single day — swipe is disabled while dragging so
+            it doesn't fight with drag-and-drop. */}
         <div
           className="md:hidden"
           onTouchStart={(e) => {
+            if (draggingTaskId !== null) return;
             setTouchStartX(e.changedTouches[0]?.clientX ?? null);
             setTouchStartY(e.changedTouches[0]?.clientY ?? null);
           }}
@@ -161,6 +207,11 @@ export function WeekView({ reference, onOpenTask, onMoveTask, onOpenUnscheduled,
             enableDnD={true}
             compact
           />
+          {draggingTaskId !== null ? (
+            <div className="mt-2 text-center text-[11px] text-sky-300/80">
+              Slip på en anden dag øverst for at flytte
+            </div>
+          ) : null}
         </div>
 
         {/* Desktop: 7-day grid with DnD */}
