@@ -44,7 +44,10 @@ export function TaskCard({
 
   return (
     <div
-      onClick={() => onOpen(task)}
+      onClick={() => {
+        if (isDragging) return;
+        onOpen(task);
+      }}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {

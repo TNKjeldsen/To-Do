@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -112,17 +112,56 @@ export function WeekView({ reference, onOpenTask, onMoveTask, onOpenUnscheduled,
   );
 
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
+  const [dragSize, setDragSize] = useState<{ width: number; height: number } | null>(null);
+  // Suppress the click that browsers sometimes synthesize after a successful
+  // drag — without this, releasing a card on top of another card would both
+  // reorder it AND open the task detail sheet on PC.
+  const suppressClickUntil = useRef<number>(0);
   const draggingTask = useMemo(
     () => state.tasks.find((t) => t.id === draggingTaskId) ?? null,
     [state.tasks, draggingTaskId]
   );
 
+  // A capture-phase click listener runs before React's onClick on the cards,
+  // so we can stop spurious post-drag clicks from opening the task detail.
+  useEffect(() => {
+    const onClickCapture = (e: MouseEvent) => {
+      if (Date.now() < suppressClickUntil.current) {
+        e.stopPropagation();
+        e.preventDefault();
+      }
+    };
+    document.addEventListener('click', onClickCapture, true);
+    return () => document.removeEventListener('click', onClickCapture, true);
+  }, []);
+
   const handleDragStart = (event: DragStartEvent) => {
-    setDraggingTaskId(String(event.active.id));
+    const id = String(event.active.id);
+    setDraggingTaskId(id);
+    // Capture the source's rendered size so the floating DragOverlay matches
+    // it instead of collapsing to min-content (which is what makes the text
+    // wrap to one character per line).
+    const node = document.querySelector<HTMLElement>(`[data-task-wrapper="${CSS.escape(id)}"]`);
+    if (node) {
+      const rect = node.getBoundingClientRect();
+      setDragSize({ width: rect.width, height: rect.height });
+    } else {
+      setDragSize(null);
+    }
+  };
+
+  const resetDragState = () => {
+    setDraggingTaskId(null);
+    setDragSize(null);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
-    setDraggingTaskId(null);
+    const wasDragging = draggingTaskId !== null;
+    resetDragState();
+    // If we got here from an actual drag (even an empty drop), eat the next
+    // click anywhere on the page so the click event tied to the same pointer
+    // sequence doesn't accidentally open the task detail.
+    if (wasDragging) suppressClickUntil.current = Date.now() + 350;
     const { active, over } = event;
     if (!over) return;
     const taskId = String(active.id);
@@ -156,7 +195,7 @@ export function WeekView({ reference, onOpenTask, onMoveTask, onOpenUnscheduled,
         sensors={sensors}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
-        onDragCancel={() => setDraggingTaskId(null)}
+        onDragCancel={resetDragState}
       >
         {/* Mobile day tabs (also act as drop targets so you can long-press a
             task and drop it on another day). */}
@@ -231,7 +270,14 @@ export function WeekView({ reference, onOpenTask, onMoveTask, onOpenUnscheduled,
         </div>
         <DragOverlay dropAnimation={null}>
           {draggingTask ? (
-            <div className="dnd-overlay">
+            <div
+              className="dnd-overlay"
+              style={
+                dragSize
+                  ? { width: dragSize.width, height: dragSize.height }
+                  : undefined
+              }
+            >
               <TaskCard
                 task={draggingTask}
                 onOpen={() => {}}

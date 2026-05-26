@@ -46,7 +46,13 @@ export function DraggableTaskCard({
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...(enableDrag ? listeners : {})}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      data-task-wrapper={task.id}
+      {...attributes}
+      {...(enableDrag ? listeners : {})}
+    >
       <TaskCard task={task} onOpen={onOpen} onMove={onMove} isDragging={isDragging} />
     </div>
   );

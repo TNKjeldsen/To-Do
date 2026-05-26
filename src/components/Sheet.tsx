@@ -30,6 +30,13 @@ export function Sheet({ open, onClose, title, children, large = false }: SheetPr
 
   if (!open) return null;
 
+  // Cap mobile height so the sheet never extends behind the iOS status bar /
+  // notch. On desktop we keep the centered-dialog max-heights since there's
+  // no safe-area concern there.
+  const sheetStyle: React.CSSProperties = {
+    maxHeight: `calc(${large ? '90dvh' : '85dvh'} - env(safe-area-inset-top, 0px))`,
+  };
+
   return (
     <div
       role="dialog"
@@ -41,10 +48,11 @@ export function Sheet({ open, onClose, title, children, large = false }: SheetPr
         onClick={onClose}
       />
       <div
+        style={sheetStyle}
         className={[
           'relative w-full md:max-w-lg bg-slate-900 border border-slate-800 shadow-2xl',
           'rounded-t-2xl md:rounded-2xl',
-          large ? 'md:max-h-[85vh] max-h-[90vh]' : 'md:max-h-[80vh] max-h-[85vh]',
+          large ? 'md:max-h-[85vh]' : 'md:max-h-[80vh]',
           'flex flex-col safe-bottom',
         ].join(' ')}
       >
