@@ -220,11 +220,18 @@ function MonthView({ year, month, setYear, setMonth, hasSetup }: MonthViewProps)
   };
 
   const toggleDay = (info: DayInfo) => {
-    if (!info.potential) return;
-    if (info.exclusion) {
-      dispatch({ type: 'REMOVE_EXCLUSION', date: info.dateKey });
+    if (info.potential) {
+      if (info.exclusion) {
+        dispatch({ type: 'REMOVE_EXCLUSION', date: info.dateKey });
+      } else {
+        dispatch({ type: 'SET_EXCLUSION', date: info.dateKey, reason: 'wfh' });
+      }
     } else {
-      dispatch({ type: 'SET_EXCLUSION', date: info.dateKey, reason: 'wfh' });
+      if (info.forcedDriven) {
+        dispatch({ type: 'REMOVE_INCLUSION', date: info.dateKey });
+      } else {
+        dispatch({ type: 'ADD_INCLUSION', date: info.dateKey });
+      }
     }
   };
 
@@ -312,7 +319,11 @@ function DayRow({ info, onToggle, onSetReason }: DayRowProps) {
   const dayLabel = format(info.date, 'EEE d. MMM', { locale: da });
   const isToday = info.dateKey === toDateKey(new Date());
 
-  if (!info.potential) {
+  // Non-potential days (weekend / public holiday) — either show a quiet
+  // "skipped" row with a small "Marker som kørt" link, OR if the user has
+  // explicitly opted in, render it like a normal driven day so it can be
+  // toggled back off.
+  if (!info.potential && !info.forcedDriven) {
     return (
       <li
         className={[
@@ -321,9 +332,19 @@ function DayRow({ info, onToggle, onSetReason }: DayRowProps) {
         ].join(' ')}
       >
         <span className="capitalize">{dayLabel}</span>
-        <span className="italic">
-          {info.isHoliday ? 'Helligdag' : weekend ? 'Weekend' : ''}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="italic">
+            {info.isHoliday ? 'Helligdag' : weekend ? 'Weekend' : ''}
+          </span>
+          <button
+            type="button"
+            onClick={onToggle}
+            className="px-1.5 py-0.5 rounded-md border border-slate-700 text-slate-400 hover:text-sky-200 hover:border-sky-500/40 text-[11px] transition"
+            aria-label={`Marker ${dayLabel} som kørt`}
+          >
+            + Kørt alligevel
+          </button>
+        </div>
       </li>
     );
   }
@@ -336,6 +357,7 @@ function DayRow({ info, onToggle, onSetReason }: DayRowProps) {
           ? 'bg-slate-800/60 border-slate-700/70'
           : 'bg-slate-900/60 border-slate-800/70',
         isToday ? 'ring-1 ring-sky-500/50' : '',
+        info.forcedDriven ? 'ring-1 ring-amber-500/40' : '',
       ].join(' ')}
     >
       <button
@@ -355,6 +377,11 @@ function DayRow({ info, onToggle, onSetReason }: DayRowProps) {
         <span className={['capitalize text-sm', info.drove ? 'text-slate-100' : 'text-slate-400'].join(' ')}>
           {dayLabel}
         </span>
+        {info.forcedDriven ? (
+          <span className="text-[10px] uppercase tracking-wide text-amber-300/90">
+            {info.isHoliday ? 'Helligdag · kørt' : 'Weekend · kørt'}
+          </span>
+        ) : null}
         {info.drove ? (
           <span className="text-xs text-sky-300">
             {formatKm(info.km)}

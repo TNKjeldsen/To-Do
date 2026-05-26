@@ -32,6 +32,8 @@ export type Action =
   | { type: 'DELETE_WORK_ADDRESS'; id: string }
   | { type: 'SET_EXCLUSION'; date: string; reason: ExclusionReason; note?: string }
   | { type: 'REMOVE_EXCLUSION'; date: string }
+  | { type: 'ADD_INCLUSION'; date: string }
+  | { type: 'REMOVE_INCLUSION'; date: string }
   | { type: 'IMPORT_REPLACE'; data: AppData }
   | { type: 'CLEAR_ALL' };
 
@@ -41,7 +43,33 @@ export function emptyState(): AppData {
     activeWorkspace: 'private',
     lastModified: Date.now(),
     tasks: [],
-    driving: { workAddresses: [], exclusions: [] },
+    driving: { workAddresses: [], exclusions: [], inclusions: [] },
+  };
+}
+
+/**
+ * Make absolutely sure state.driving is well-formed. Cheap insurance against
+ * stale localStorage payloads or remote sync data from an older schema where
+ * fields might be missing.
+ */
+function ensureDriving(state: AppData): AppData {
+  const d = state.driving;
+  if (
+    d &&
+    Array.isArray(d.workAddresses) &&
+    Array.isArray(d.exclusions) &&
+    Array.isArray(d.inclusions)
+  ) {
+    return state;
+  }
+  return {
+    ...state,
+    driving: {
+      workAddresses: Array.isArray(d?.workAddresses) ? d!.workAddresses : [],
+      exclusions: Array.isArray(d?.exclusions) ? d!.exclusions : [],
+      inclusions: Array.isArray(d?.inclusions) ? d!.inclusions : [],
+      ...(d?.homeAddress ? { homeAddress: d.homeAddress } : {}),
+    },
   };
 }
 
@@ -143,6 +171,8 @@ const MUTATING_ACTIONS = new Set<Action['type']>([
   'DELETE_WORK_ADDRESS',
   'SET_EXCLUSION',
   'REMOVE_EXCLUSION',
+  'ADD_INCLUSION',
+  'REMOVE_INCLUSION',
 ]);
 
 /** Add 7 days to a YYYY-MM-DD string. Uses local time. */
@@ -156,8 +186,9 @@ function addWeek(dateKey: string): string {
 }
 
 export function reducer(state: AppData, action: Action): AppData {
-  const next = dataReducer(state, action);
-  if (next === state) return state;
+  const safe = ensureDriving(state);
+  const next = dataReducer(safe, action);
+  if (next === safe) return safe === state ? state : safe;
   if (MUTATING_ACTIONS.has(action.type)) {
     return touched(next);
   }
@@ -512,6 +543,26 @@ function dataReducer(state: AppData, action: Action): AppData {
         driving: {
           ...state.driving,
           exclusions: state.driving.exclusions.filter((e) => e.date !== action.date),
+        },
+      };
+
+    case 'ADD_INCLUSION': {
+      if (state.driving.inclusions.includes(action.date)) return state;
+      return {
+        ...state,
+        driving: {
+          ...state.driving,
+          inclusions: [...state.driving.inclusions, action.date],
+        },
+      };
+    }
+
+    case 'REMOVE_INCLUSION':
+      return {
+        ...state,
+        driving: {
+          ...state.driving,
+          inclusions: state.driving.inclusions.filter((d) => d !== action.date),
         },
       };
 

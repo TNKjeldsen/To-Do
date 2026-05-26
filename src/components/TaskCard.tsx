@@ -7,8 +7,6 @@ interface TaskCardProps {
   task: Task;
   onOpen: (task: Task) => void;
   onMove: (task: Task) => void;
-  /** Optional drag listeners injected by @dnd-kit. */
-  dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>;
   isDragging?: boolean;
 }
 
@@ -16,7 +14,6 @@ export function TaskCard({
   task,
   onOpen,
   onMove,
-  dragHandleProps,
   isDragging = false,
 }: TaskCardProps) {
   const dispatch = useDispatch();
@@ -67,6 +64,7 @@ export function TaskCard({
         <button
           type="button"
           onClick={handleToggle}
+          onPointerDown={(e) => e.stopPropagation()}
           aria-label={task.done ? 'Marker som ikke færdig' : 'Marker som færdig'}
           className={[
             'shrink-0 mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center transition',
@@ -103,20 +101,10 @@ export function TaskCard({
         </div>
 
         <div className="flex items-center gap-0.5 md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100 transition-opacity">
-          {dragHandleProps ? (
-            <button
-              type="button"
-              aria-label="Træk for at flytte"
-              {...dragHandleProps}
-              onClick={(e) => e.stopPropagation()}
-              className="hidden md:flex p-1.5 rounded-md text-slate-400 hover:text-slate-100 hover:bg-slate-700 cursor-grab active:cursor-grabbing"
-            >
-              <Icon name="grip" size={14} />
-            </button>
-          ) : null}
           <button
             type="button"
             onClick={handleMove}
+            onPointerDown={(e) => e.stopPropagation()}
             aria-label="Flyt opgave"
             className="p-1.5 rounded-md text-slate-400 hover:text-slate-100 hover:bg-slate-700 transition"
           >
@@ -125,6 +113,7 @@ export function TaskCard({
           <button
             type="button"
             onClick={handleDelete}
+            onPointerDown={(e) => e.stopPropagation()}
             aria-label={confirmDelete ? 'Bekræft sletning' : 'Slet opgave'}
             title={confirmDelete ? 'Klik igen for at slette' : 'Slet'}
             className={[

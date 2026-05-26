@@ -71,6 +71,12 @@ export interface DrivingData {
   workAddresses: WorkAddress[];
   /** Days the user did not drive (sick / WFH / holiday / etc.). */
   exclusions: DrivingExclusion[];
+  /**
+   * Dates (YYYY-MM-DD) where the user explicitly drove on a non-standard
+   * day — e.g. called in on a weekend or worked on a public holiday.
+   * Counted as a driving day even though it would normally be skipped.
+   */
+  inclusions: string[];
 }
 
 export const SCHEMA_VERSION = 5 as const;

@@ -136,7 +136,9 @@ export interface DayInfo {
   date: Date;
   /** True for Mon-Fri and not a public holiday. */
   potential: boolean;
-  /** True when the user actually drove (potential AND not excluded). */
+  /** True when the user actually drove (default for potential days, can be
+   *  flipped via exclusions for potential days and inclusions for
+   *  non-potential days like weekends or holidays). */
   drove: boolean;
   /** Round trip distance for the day (0 when not drove). */
   km: number;
@@ -146,6 +148,9 @@ export interface DayInfo {
   exclusion: DrivingExclusion | null;
   /** Public holiday flag (informational). */
   isHoliday: boolean;
+  /** True when this is a non-potential day the user explicitly marked as
+   *  driven (e.g. weekend on-call). */
+  forcedDriven: boolean;
 }
 
 /** Build per-day info for a calendar month. */
@@ -155,6 +160,7 @@ export function monthDays(
   driving: DrivingData
 ): DayInfo[] {
   const exMap = exclusionMap(driving.exclusions);
+  const inclusionsSet = new Set(driving.inclusions);
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const out: DayInfo[] = [];
   for (let day = 1; day <= daysInMonth; day++) {
@@ -165,10 +171,23 @@ export function monthDays(
     const isHoliday = !isWeekend && isDanishHoliday(date);
     const potential = !isWeekend && !isHoliday;
     const exclusion = exMap.get(dateKey) ?? null;
-    const drove = potential && !exclusion;
+    const forcedDriven = !potential && inclusionsSet.has(dateKey);
+    // Exclusion always wins (user said "I didn't drive"). Otherwise default
+    // depends on whether it's a potential weekday or an opt-in weekend/holiday.
+    const drove = !exclusion && (potential || forcedDriven);
     const address = drove ? effectiveAddress(driving, date) : null;
     const km = drove && address ? Math.max(0, address.oneWayKm) * 2 : 0;
-    out.push({ dateKey, date, potential, drove, km, address, exclusion, isHoliday });
+    out.push({
+      dateKey,
+      date,
+      potential,
+      drove,
+      km,
+      address,
+      exclusion,
+      isHoliday,
+      forcedDriven,
+    });
   }
   return out;
 }

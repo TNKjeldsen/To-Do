@@ -27,7 +27,7 @@ function asExclusionReason(value: unknown): ExclusionReason {
 
 function parseDrivingData(raw: unknown): DrivingData {
   if (!raw || typeof raw !== 'object') {
-    return { workAddresses: [], exclusions: [] };
+    return { workAddresses: [], exclusions: [], inclusions: [] };
   }
   const obj = raw as Record<string, unknown>;
   const workAddresses: WorkAddress[] = [];
@@ -62,7 +62,13 @@ function parseDrivingData(raw: unknown): DrivingData {
       });
     }
   }
-  const out: DrivingData = { workAddresses, exclusions };
+  const inclusions: string[] = [];
+  if (Array.isArray(obj.inclusions)) {
+    for (const d of obj.inclusions) {
+      if (typeof d === 'string') inclusions.push(d);
+    }
+  }
+  const out: DrivingData = { workAddresses, exclusions, inclusions };
   if (typeof obj.homeAddress === 'string' && obj.homeAddress.trim()) {
     out.homeAddress = obj.homeAddress;
   }
