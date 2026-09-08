@@ -18,6 +18,7 @@ import type { Task } from '../types';
 import { DayColumn } from './DayColumn';
 import { TaskCard } from './TaskCard';
 import { useAppState, useDispatch } from '../state/AppStateContext';
+import { useSelection } from '../state/SelectionContext';
 
 interface DayTabProps {
   dateKey: string;
@@ -87,6 +88,9 @@ export function WeekView({ reference, onOpenTask, onMoveTask, onOpenUnscheduled,
   const dayKeys = useMemo(() => days.map(toDateKey), [days]);
   const { state } = useAppState();
   const dispatch = useDispatch();
+  // Picking cards and dragging them are different gestures on the same
+  // surface, so drag-and-drop stands down while a selection is in progress.
+  const { selectionMode } = useSelection();
 
   const todayIndex = days.findIndex((d) => isToday(d));
   const [activeIdx, setActiveIdx] = useState<number>(todayIndex >= 0 ? todayIndex : 0);
@@ -252,7 +256,7 @@ export function WeekView({ reference, onOpenTask, onMoveTask, onOpenUnscheduled,
                     dayNumber={d.getDate()}
                     count={tasksPerDay[i] ?? 0}
                     draggingActive={draggingTaskId !== null}
-                    droppableDisabled={false}
+                    droppableDisabled={selectionMode}
                     onClick={() => setActiveIdx(i)}
                   />
                 ))}
@@ -290,7 +294,7 @@ export function WeekView({ reference, onOpenTask, onMoveTask, onOpenUnscheduled,
                 dayIndex={safeActive}
                 onOpenTask={onOpenTask}
                 onMoveTask={onMoveTask}
-                enableDnD={true}
+                enableDnD={!selectionMode}
                 compact
               />
               {draggingTaskId !== null ? (
@@ -309,7 +313,7 @@ export function WeekView({ reference, onOpenTask, onMoveTask, onOpenUnscheduled,
                 dayIndex={i}
                 onOpenTask={onOpenTask}
                 onMoveTask={onMoveTask}
-                enableDnD={true}
+                enableDnD={!selectionMode}
               />
             ))}
           </div>
@@ -335,7 +339,9 @@ export function WeekView({ reference, onOpenTask, onMoveTask, onOpenUnscheduled,
         </DragOverlay>
       </DndContext>
 
-      {/* FAB for unscheduled tasks */}
+      {/* FAB for unscheduled tasks — hidden while the selection bar owns the
+          bottom of the screen. */}
+      {!selectionMode ? (
       <button
         type="button"
         onClick={onOpenUnscheduled}
@@ -354,6 +360,7 @@ export function WeekView({ reference, onOpenTask, onMoveTask, onOpenUnscheduled,
           </span>
         ) : null}
       </button>
+      ) : null}
     </div>
   );
 }

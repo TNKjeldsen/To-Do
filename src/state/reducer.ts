@@ -7,6 +7,7 @@ import {
   type ExclusionReason,
   type Subtask,
   type Task,
+  type TaskSnapshot,
   type WorkAddress,
   type WorkspaceId,
 } from '../types';
@@ -21,6 +22,7 @@ export type Action =
   | { type: 'DELETE_TASK'; id: string }
   | { type: 'MOVE_TASK'; id: string; toDate: string; toIndex?: number }
   | { type: 'REORDER_TASK'; id: string; toIndex: number }
+  | { type: 'PASTE_TASKS'; snapshots: TaskSnapshot[]; toDate: string }
   | { type: 'ADD_SUBTASK'; taskId: string; text: string }
   | { type: 'UPDATE_SUBTASK'; taskId: string; subId: string; patch: Partial<Pick<Subtask, 'text'>> }
   | { type: 'TOGGLE_SUBTASK'; taskId: string; subId: string }
@@ -96,24 +98,57 @@ function nextOrder(state: AppData, date: string): number {
 }
 
 /**
- * Compute a new order value to insert at `toIndex` within the given day's
- * task list (excluding the moved task itself). Uses gaps so we rarely have
- * to renumber. If gaps collapse, we renumber the day.
+ * A day's tasks in the exact order they are rendered: unfinished first (by
+ * `order`), finished at the bottom. `order` is the single source of truth for
+ * the manual ordering — `useTasksByDate` sorts identically, so an index taken
+ * from the UI can be used here directly.
  */
-function orderForInsert(
-  list: Task[],
-  toIndex: number,
-): { order: number; renumber: boolean } {
-  const len = list.length;
-  const idx = Math.max(0, Math.min(toIndex, len));
-  if (len === 0) return { order: 1000, renumber: false };
-  if (idx === 0) return { order: list[0]!.order - 1000, renumber: false };
-  if (idx === len) return { order: list[len - 1]!.order + 1000, renumber: false };
-  const prev = list[idx - 1]!.order;
-  const next = list[idx]!.order;
-  const between = (prev + next) / 2;
-  if (next - prev < 0.0001) return { order: between, renumber: true };
-  return { order: between, renumber: false };
+function dayList(tasks: Task[], date: string, workspace: WorkspaceId): Task[] {
+  return tasks
+    .filter((t) => t.date === date && t.workspace === workspace)
+    .sort((a, b) => (a.done === b.done ? a.order - b.order : a.done ? 1 : -1));
+}
+
+/** Renumber a day so its tasks' `order` values match `sequence` exactly. */
+function applySequence(tasks: Task[], sequence: Task[]): Task[] {
+  const orderById = new Map<string, number>();
+  sequence.forEach((t, i) => orderById.set(t.id, (i + 1) * 1000));
+  return tasks.map((t) => {
+    const order = orderById.get(t.id);
+    return order === undefined || order === t.order ? t : { ...t, order };
+  });
+}
+
+/**
+ * Put `id` at `toIndex` within its (already up-to-date) day and renumber that
+ * day. We renumber on every move instead of splitting order gaps because the
+ * rendered order also pushes done tasks to the bottom — renumbering keeps the
+ * stored `order` and what the user sees from drifting apart.
+ */
+function placeInDay(
+  tasks: Task[],
+  id: string,
+  date: string,
+  workspace: WorkspaceId,
+  toIndex: number
+): Task[] {
+  const moving = tasks.find((t) => t.id === id);
+  if (!moving) return tasks;
+  const list = dayList(tasks, date, workspace).filter((t) => t.id !== id);
+  const idx = Math.max(0, Math.min(toIndex, list.length));
+  list.splice(idx, 0, moving);
+  return applySequence(tasks, list);
+}
+
+/**
+ * Where a task with the given time belongs in `list` (which must not contain
+ * the task itself). Timed tasks stay in chronological order relative to each
+ * other and sit above untimed ones — but only until the user drags them
+ * somewhere else, since nothing re-applies this afterwards.
+ */
+function indexForTime(list: Task[], time: string): number {
+  const idx = list.findIndex((t) => !t.done && (!t.time || t.time > time));
+  return idx < 0 ? list.length : idx;
 }
 
 function orderForSubtaskInsert(
@@ -132,25 +167,6 @@ function orderForSubtaskInsert(
   return { order: between, renumber: false };
 }
 
-function renumberDay(
-  tasks: Task[],
-  date: string,
-  workspace: WorkspaceId
-): Task[] {
-  let counter = 1000;
-  const sorted = tasks
-    .filter((t) => t.date === date && t.workspace === workspace)
-    .sort((a, b) => a.order - b.order);
-  const orderById = new Map<string, number>();
-  for (const t of sorted) {
-    orderById.set(t.id, counter);
-    counter += 1000;
-  }
-  return tasks.map((t) =>
-    orderById.has(t.id) ? { ...t, order: orderById.get(t.id)! } : t
-  );
-}
-
 /** Actions that change persisted task data and should bump lastModified. */
 const MUTATING_ACTIONS = new Set<Action['type']>([
   'ADD_TASK',
@@ -160,6 +176,7 @@ const MUTATING_ACTIONS = new Set<Action['type']>([
   'DELETE_TASK',
   'MOVE_TASK',
   'REORDER_TASK',
+  'PASTE_TASKS',
   'ADD_SUBTASK',
   'UPDATE_SUBTASK',
   'TOGGLE_SUBTASK',
@@ -233,23 +250,57 @@ function dataReducer(state: AppData, action: Action): AppData {
         workspace: state.activeWorkspace,
         subtasks: [],
       };
-      return { ...state, tasks: [...state.tasks, task] };
+      const tasks = [...state.tasks, task];
+      if (!time) return { ...state, tasks };
+      // A task created with a time slots into the day chronologically.
+      const others = dayList(tasks, action.date, state.activeWorkspace).filter(
+        (t) => t.id !== task.id
+      );
+      return {
+        ...state,
+        tasks: placeInDay(
+          tasks,
+          task.id,
+          action.date,
+          state.activeWorkspace,
+          indexForTime(others, time)
+        ),
+      };
     }
 
     case 'UPDATE_TASK': {
       const trimmed =
         action.patch.title !== undefined ? action.patch.title.trim() : undefined;
+      const target = state.tasks.find((t) => t.id === action.id);
+      if (!target) return state;
+      const tasks = state.tasks.map((t) =>
+        t.id === action.id
+          ? {
+              ...t,
+              ...action.patch,
+              ...(trimmed !== undefined ? { title: trimmed || t.title } : null),
+              updatedAt: now(),
+            }
+          : t
+      );
+      // Setting (or changing) a time re-slots the task chronologically, the
+      // same way a newly created "Møde 9:00" does. Clearing it leaves the task
+      // where it is, and any manual drag afterwards wins.
+      const nextTime = action.patch.time;
+      if (!nextTime || nextTime === target.time || target.unscheduled) {
+        return { ...state, tasks };
+      }
+      const others = dayList(tasks, target.date, target.workspace).filter(
+        (t) => t.id !== target.id
+      );
       return {
         ...state,
-        tasks: state.tasks.map((t) =>
-          t.id === action.id
-            ? {
-                ...t,
-                ...action.patch,
-                ...(trimmed !== undefined ? { title: trimmed || t.title } : null),
-                updatedAt: now(),
-              }
-            : t
+        tasks: placeInDay(
+          tasks,
+          target.id,
+          target.date,
+          target.workspace,
+          indexForTime(others, nextTime)
         ),
       };
     }
@@ -332,50 +383,75 @@ function dataReducer(state: AppData, action: Action): AppData {
     case 'MOVE_TASK': {
       const task = state.tasks.find((t) => t.id === action.id);
       if (!task) return state;
-      const targetList = state.tasks
-        .filter(
-          (t) =>
-            t.date === action.toDate &&
-            t.workspace === task.workspace &&
-            t.id !== task.id
-        )
-        .sort((a, b) => a.order - b.order);
-      const { order, renumber } = orderForInsert(
-        targetList,
-        action.toIndex ?? targetList.length
-      );
-      let next = state.tasks.map((t) =>
+      const moved = state.tasks.map((t) =>
         t.id === task.id
           ? {
               ...t,
               date: action.toDate,
               unscheduled: action.toDate === 'unscheduled',
-              order,
               updatedAt: now(),
             }
           : t
       );
-      if (renumber) next = renumberDay(next, action.toDate, task.workspace);
-      return { ...state, tasks: next };
+      const targetLength = dayList(moved, action.toDate, task.workspace).length;
+      return {
+        ...state,
+        tasks: placeInDay(
+          moved,
+          task.id,
+          action.toDate,
+          task.workspace,
+          action.toIndex ?? targetLength
+        ),
+      };
     }
 
     case 'REORDER_TASK': {
       const task = state.tasks.find((t) => t.id === action.id);
       if (!task) return state;
-      const list = state.tasks
-        .filter(
-          (t) =>
-            t.date === task.date &&
-            t.workspace === task.workspace &&
-            t.id !== task.id
-        )
-        .sort((a, b) => a.order - b.order);
-      const { order, renumber } = orderForInsert(list, action.toIndex);
-      let next = state.tasks.map((t) =>
-        t.id === task.id ? { ...t, order, updatedAt: now() } : t
-      );
-      if (renumber) next = renumberDay(next, task.date, task.workspace);
-      return { ...state, tasks: next };
+      return {
+        ...state,
+        tasks: placeInDay(
+          state.tasks,
+          task.id,
+          task.date,
+          task.workspace,
+          action.toIndex
+        ),
+      };
+    }
+
+    case 'PASTE_TASKS': {
+      if (action.snapshots.length === 0) return state;
+      const isUnscheduled = action.toDate === 'unscheduled';
+      let order = nextOrder(state, action.toDate);
+      // Pasted cards are a fresh to-do list: nothing is ticked off, and the
+      // weekly chain stays with the original so copies don't start spawning
+      // their own future duplicates.
+      const copies: Task[] = action.snapshots.map((snap) => {
+        const copy: Task = {
+          id: newId(),
+          title: snap.title,
+          date: action.toDate,
+          unscheduled: isUnscheduled,
+          done: false,
+          order,
+          repeatWeekly: false,
+          ...(snap.time && !isUnscheduled ? { time: snap.time } : {}),
+          createdAt: now(),
+          updatedAt: now(),
+          workspace: state.activeWorkspace,
+          subtasks: snap.subtasks.map((text, i) => ({
+            id: newId(),
+            text,
+            done: false,
+            order: (i + 1) * 1000,
+          })),
+        };
+        order += 1000;
+        return copy;
+      });
+      return { ...state, tasks: [...state.tasks, ...copies] };
     }
 
     case 'ADD_SUBTASK': {

@@ -16,7 +16,10 @@ interface IconProps extends SVGProps<SVGSVGElement> {
     | 'caret-down'
     | 'download'
     | 'upload'
-    | 'car';
+    | 'car'
+    | 'copy'
+    | 'paste'
+    | 'check-square';
   size?: number;
 }
 
@@ -41,6 +44,9 @@ const PATHS: Record<IconProps['name'], string> = {
   download: 'M12 3v12M5 12l7 7 7-7M5 21h14',
   upload: 'M12 21V9M5 12l7-7 7 7M5 3h14',
   car: 'M5 17a2 2 0 1 0 4 0M15 17a2 2 0 1 0 4 0M3 17h2m14 0h2v-5l-2-5H6l-2 5v5h1M7 7h10',
+  copy: 'M9 9h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V10a1 1 0 0 1 1-1zM5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1',
+  paste: 'M9 4H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2M9 4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1V4zM9 13h6M9 17h4',
+  'check-square': 'M9 12l2 2 4-4M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z',
 };
 
 export function Icon({ name, size = 18, ...rest }: IconProps) {

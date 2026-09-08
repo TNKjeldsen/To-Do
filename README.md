@@ -14,6 +14,14 @@ ingen konto, ingen backend, ingen tracking.
   - **Desktop:** drag-and-drop mellem dagskolonner (eller "Flyt til…"-knap)
   - **Mobil:** hold på en opgave (~220 ms) og slip den på en anden dag-fane i toppen,
     eller brug "Flyt til…"-knappen
+- **Vælg flere opgaver** — tryk på flueben-ikonet i toppen for at gå i vælge-tilstand.
+  Tryk på kortene (eller "Alle" i en dagsoverskrift) for at vælge dem, tryk **Kopiér**,
+  og sæt dem ind igen med **Sæt ind** → "I morgen" / en anden dag. Kopierede opgaver
+  kan også sættes ind direkte med "Sæt N ind"-knappen nederst i hver dagskolonne.
+  Udklipsholderen overlever en genstart af appen og ryddes fra "Sæt ind"-arket.
+- **Fri rækkefølge** — kort kan trækkes hvorhen du vil, også når de har et klokkeslet.
+  Sætter du et klokkeslet på en opgave, placeres den automatisk i kronologisk
+  rækkefølge — derefter bestemmer du selv med træk-og-slip.
 - Markér opgaver / underpunkter som færdige
 - Ugentlige opgaver — markeres som færdige uden at flytte; næste uges kopi
   oprettes automatisk så kæden fortsætter

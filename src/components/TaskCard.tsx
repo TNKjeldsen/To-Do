@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Task } from '../types';
 import { useDispatch } from '../state/AppStateContext';
+import { useSelection } from '../state/SelectionContext';
 import { Icon } from './Icon';
 
 interface TaskCardProps {
@@ -17,13 +18,26 @@ export function TaskCard({
   isDragging = false,
 }: TaskCardProps) {
   const dispatch = useDispatch();
+  const { selectionMode, selectedIds, toggle } = useSelection();
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  const selected = selectedIds.has(task.id);
   const total = task.subtasks.length;
   const done = task.subtasks.filter((s) => s.done).length;
 
+  // In selection mode the whole card is a selection target — tapping it must
+  // not open the detail sheet or tick the task off.
+  const activate = () => {
+    if (selectionMode) toggle(task.id);
+    else onOpen(task);
+  };
+
   const handleToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (selectionMode) {
+      toggle(task.id);
+      return;
+    }
     dispatch({ type: 'TOGGLE_TASK', id: task.id });
   };
 
@@ -46,19 +60,21 @@ export function TaskCard({
     <div
       onClick={() => {
         if (isDragging) return;
-        onOpen(task);
+        activate();
       }}
       role="button"
       tabIndex={0}
+      aria-pressed={selectionMode ? selected : undefined}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          onOpen(task);
+          activate();
         }
       }}
       className={[
         'group relative rounded-lg border bg-slate-800/70 hover:bg-slate-800 active:bg-slate-700/80 transition cursor-pointer select-none',
         isDragging ? 'border-sky-500/60 shadow-xl' : 'border-slate-700/70',
+        selected ? 'ring-2 ring-sky-400 border-sky-500/60 bg-sky-500/10' : '',
         task.done ? 'opacity-60 task-done-pop' : '',
       ].join(' ')}
     >
@@ -68,15 +84,25 @@ export function TaskCard({
           type="button"
           onClick={handleToggle}
           onPointerDown={(e) => e.stopPropagation()}
-          aria-label={task.done ? 'Marker som ikke færdig' : 'Marker som færdig'}
+          aria-label={
+            selectionMode
+              ? selected
+                ? 'Fravælg opgave'
+                : 'Vælg opgave'
+              : task.done
+                ? 'Marker som ikke færdig'
+                : 'Marker som færdig'
+          }
           className={[
-            'shrink-0 mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center transition',
-            task.done
-              ? 'bg-sky-500 border-sky-500 text-white task-check-done'
+            'shrink-0 mt-0.5 w-5 h-5 border flex items-center justify-center transition',
+            selectionMode ? 'rounded-full' : 'rounded-md',
+            (selectionMode ? selected : task.done)
+              ? 'bg-sky-500 border-sky-500 text-white'
               : 'border-slate-500 hover:border-slate-300',
+            !selectionMode && task.done ? 'task-check-done' : '',
           ].join(' ')}
         >
-          {task.done ? <Icon name="check" size={14} /> : null}
+          {(selectionMode ? selected : task.done) ? <Icon name="check" size={14} /> : null}
         </button>
 
         <div className="flex-1 min-w-0">
@@ -103,32 +129,34 @@ export function TaskCard({
           {total > 0 ? `${done}/${total} punkter` : ''}
         </div>
 
-        <div className="flex items-center gap-0.5 md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100 transition-opacity">
-          <button
-            type="button"
-            onClick={handleMove}
-            onPointerDown={(e) => e.stopPropagation()}
-            aria-label="Flyt opgave"
-            className="p-1.5 rounded-md text-slate-400 hover:text-slate-100 hover:bg-slate-700 transition"
-          >
-            <Icon name="move" size={14} />
-          </button>
-          <button
-            type="button"
-            onClick={handleDelete}
-            onPointerDown={(e) => e.stopPropagation()}
-            aria-label={confirmDelete ? 'Bekræft sletning' : 'Slet opgave'}
-            title={confirmDelete ? 'Klik igen for at slette' : 'Slet'}
-            className={[
-              'p-1.5 rounded-md transition',
-              confirmDelete
-                ? 'text-red-400 bg-red-500/10'
-                : 'text-slate-400 hover:text-red-300 hover:bg-slate-700',
-            ].join(' ')}
-          >
-            <Icon name="trash" size={14} />
-          </button>
-        </div>
+        {!selectionMode ? (
+          <div className="flex items-center gap-0.5 md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100 transition-opacity">
+            <button
+              type="button"
+              onClick={handleMove}
+              onPointerDown={(e) => e.stopPropagation()}
+              aria-label="Flyt opgave"
+              className="p-1.5 rounded-md text-slate-400 hover:text-slate-100 hover:bg-slate-700 transition"
+            >
+              <Icon name="move" size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              onPointerDown={(e) => e.stopPropagation()}
+              aria-label={confirmDelete ? 'Bekræft sletning' : 'Slet opgave'}
+              title={confirmDelete ? 'Klik igen for at slette' : 'Slet'}
+              className={[
+                'p-1.5 rounded-md transition',
+                confirmDelete
+                  ? 'text-red-400 bg-red-500/10'
+                  : 'text-slate-400 hover:text-red-300 hover:bg-slate-700',
+              ].join(' ')}
+            >
+              <Icon name="trash" size={14} />
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );

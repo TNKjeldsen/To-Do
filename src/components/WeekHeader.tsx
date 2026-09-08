@@ -7,6 +7,7 @@ import {
 import { Icon } from './Icon';
 import { WorkspaceToggle } from './WorkspaceToggle';
 import { useActiveWorkspace } from '../state/AppStateContext';
+import { useSelection } from '../state/SelectionContext';
 
 interface WeekHeaderProps {
   reference: Date;
@@ -26,6 +27,8 @@ export function WeekHeader({
   onOpenDriving,
 }: WeekHeaderProps) {
   const isWork = useActiveWorkspace() === 'work';
+  const { selectionMode, enterSelection, exitSelection } = useSelection();
+  const toggleSelection = () => (selectionMode ? exitSelection() : enterSelection());
   const monday = startOfMondayWeek(reference);
   const sunday = addDays(monday, 6);
   const range = `${format(monday, 'd. MMM', { locale: da })} – ${format(sunday, 'd. MMM yyyy', { locale: da })}`;
@@ -86,6 +89,21 @@ export function WeekHeader({
         ) : null}
         <button
           type="button"
+          onClick={toggleSelection}
+          aria-label={selectionMode ? 'Afslut valg' : 'Vælg opgaver'}
+          title={selectionMode ? 'Afslut valg' : 'Vælg flere opgaver'}
+          aria-pressed={selectionMode}
+          className={[
+            'p-2 rounded-lg transition',
+            selectionMode
+              ? 'bg-sky-500/20 text-sky-200'
+              : 'hover:bg-slate-800 active:bg-slate-700',
+          ].join(' ')}
+        >
+          <Icon name="check-square" size={20} />
+        </button>
+        <button
+          type="button"
           onClick={onOpenSettings}
           aria-label="Indstillinger"
           className="p-2 rounded-lg hover:bg-slate-800 active:bg-slate-700 transition"
@@ -135,6 +153,20 @@ export function WeekHeader({
               <Icon name="car" size={18} />
             </button>
           ) : null}
+          <button
+            type="button"
+            onClick={toggleSelection}
+            aria-label={selectionMode ? 'Afslut valg' : 'Vælg opgaver'}
+            aria-pressed={selectionMode}
+            className={[
+              'p-2 rounded-lg transition',
+              selectionMode
+                ? 'bg-sky-500/20 text-sky-200'
+                : 'hover:bg-slate-800 active:bg-slate-700',
+            ].join(' ')}
+          >
+            <Icon name="check-square" size={18} />
+          </button>
           <button
             type="button"
             onClick={onOpenSettings}

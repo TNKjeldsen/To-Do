@@ -36,6 +36,17 @@ export interface Task {
 }
 
 /**
+ * A copied card, stripped down to the bits worth pasting somewhere else.
+ * Deliberately not a `Task`: no id, no done-state, no order — a paste always
+ * produces brand new, unticked cards.
+ */
+export interface TaskSnapshot {
+  title: string;
+  time?: string;
+  subtasks: string[];
+}
+
+/**
  * Driving / commute tracking. The model is built around the typical Danish
  * kørselsfradrag use-case: report how many days you drove home → work → home,
  * per month and per year. We default to "drove on every weekday" and let
@@ -79,7 +90,7 @@ export interface DrivingData {
   inclusions: string[];
 }
 
-export const SCHEMA_VERSION = 5 as const;
+export const SCHEMA_VERSION = 6 as const;
 
 export interface AppData {
   schemaVersion: typeof SCHEMA_VERSION;

@@ -263,12 +263,11 @@ export function useTasksByDate(date: string) {
       state.tasks
         .filter((t) => t.date === date && t.workspace === ws)
         .sort((a, b) => {
-          // Done tasks always go to the bottom
+          // Done tasks always go to the bottom; everything else follows the
+          // manual `order`. A time no longer forces the position — setting one
+          // slots the task in chronologically (see the reducer), but a drag
+          // afterwards sticks.
           if (a.done !== b.done) return a.done ? 1 : -1;
-          // Tasks with a time come first, sorted by time
-          if (a.time && b.time) return a.time.localeCompare(b.time);
-          if (a.time) return -1;
-          if (b.time) return 1;
           return a.order - b.order;
         }),
     [state.tasks, date, ws]

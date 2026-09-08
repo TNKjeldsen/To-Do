@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { addDays } from 'date-fns';
 import { AppStateProvider, useAppState } from './state/AppStateContext';
+import { SelectionProvider } from './state/SelectionContext';
 import { WeekHeader } from './components/WeekHeader';
 import { WeekView } from './components/WeekView';
 import { TaskDetail } from './components/TaskDetail';
@@ -9,6 +10,8 @@ import { SettingsSheet } from './components/SettingsSheet';
 import { DrivingSheet } from './components/DrivingSheet';
 import { PWAUpdatePrompt } from './components/PWAUpdatePrompt';
 import { UnscheduledSheet } from './components/UnscheduledSheet';
+import { SelectionBar } from './components/SelectionBar';
+import { PasteSheet } from './components/PasteSheet';
 import { WorkspaceToggle } from './components/WorkspaceToggle';
 import type { Task } from './types';
 
@@ -19,6 +22,7 @@ function AppShell() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [drivingOpen, setDrivingOpen] = useState(false);
   const [unscheduledOpen, setUnscheduledOpen] = useState(false);
+  const [pasteOpen, setPasteOpen] = useState(false);
 
   const { state } = useAppState();
   const unscheduledCount = useMemo(
@@ -68,6 +72,14 @@ function AppShell() {
         onOpenTask={(task) => setOpenTaskId(task.id)}
       />
 
+      <SelectionBar onPaste={() => setPasteOpen(true)} />
+
+      <PasteSheet
+        open={pasteOpen}
+        onClose={() => setPasteOpen(false)}
+        reference={reference}
+      />
+
       {/* Mobile footer: workspace toggle */}
       <div className="sm:hidden fixed bottom-0 left-0 right-0 z-20 bg-slate-950/90 backdrop-blur border-t border-slate-800 safe-bottom flex justify-center py-2">
         <WorkspaceToggle />
@@ -81,7 +93,9 @@ function AppShell() {
 export default function App() {
   return (
     <AppStateProvider>
-      <AppShell />
+      <SelectionProvider>
+        <AppShell />
+      </SelectionProvider>
     </AppStateProvider>
   );
 }
