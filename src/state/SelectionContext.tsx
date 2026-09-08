@@ -54,13 +54,25 @@ function saveClipboard(snapshots: TaskSnapshot[]): void {
 }
 
 interface SelectionValue {
-  /** True while the user is picking cards. Drag-and-drop is off in this mode. */
+  /**
+   * Touch-only tap-to-pick mode. On desktop you rubber-band select instead, so
+   * this stays off there and the cards keep their normal click behaviour.
+   */
   selectionMode: boolean;
   selectedIds: ReadonlySet<string>;
   clipboard: TaskSnapshot[];
+  /**
+   * The day Ctrl+V pastes into — set by clicking anywhere in a day column.
+   * Null until the user has pointed at a day.
+   */
+  activeDate: string | null;
+  setActiveDate: (date: string | null) => void;
   enterSelection: () => void;
   exitSelection: () => void;
   toggle: (id: string) => void;
+  /** Replace the whole selection — used while dragging a marquee. */
+  setSelection: (ids: string[]) => void;
+  clearSelection: () => void;
   /** Select or deselect a whole day at once. */
   setMany: (ids: string[], selected: boolean) => void;
   /** Snapshot the current selection into the clipboard. */
@@ -75,6 +87,7 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [clipboard, setClipboard] = useState<TaskSnapshot[]>(loadClipboard);
+  const [activeDate, setActiveDate] = useState<string | null>(null);
 
   const enterSelection = useCallback(() => setSelectionMode(true), []);
 
@@ -91,6 +104,12 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
       return next;
     });
   }, []);
+
+  const setSelection = useCallback((ids: string[]) => {
+    setSelectedIds(new Set(ids));
+  }, []);
+
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
 
   const setMany = useCallback((ids: string[], selected: boolean) => {
     setSelectedIds((prev) => {
@@ -132,9 +151,13 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
       selectionMode,
       selectedIds,
       clipboard,
+      activeDate,
+      setActiveDate,
       enterSelection,
       exitSelection,
       toggle,
+      setSelection,
+      clearSelection,
       setMany,
       copySelection,
       clearClipboard,
@@ -143,9 +166,12 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
       selectionMode,
       selectedIds,
       clipboard,
+      activeDate,
       enterSelection,
       exitSelection,
       toggle,
+      setSelection,
+      clearSelection,
       setMany,
       copySelection,
       clearClipboard,

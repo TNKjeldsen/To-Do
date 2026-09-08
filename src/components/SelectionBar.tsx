@@ -2,6 +2,13 @@ import { useEffect, useState } from 'react';
 import { useSelection } from '../state/SelectionContext';
 import { Icon } from './Icon';
 
+/** "⌘C" on a Mac, "Ctrl+C" everywhere else. */
+function shortcut(letter: string): string {
+  const mac =
+    typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || '');
+  return mac ? `⌘${letter}` : `Ctrl+${letter}`;
+}
+
 interface SelectionBarProps {
   onPaste: () => void;
 }
@@ -23,7 +30,8 @@ export function SelectionBar({ onPaste }: SelectionBarProps) {
     return () => window.clearTimeout(timer);
   }, [copiedCount]);
 
-  if (!selectionMode) return null;
+  // Desktop has no selection mode — the bar simply follows the selection.
+  if (!selectionMode && count === 0) return null;
 
   return (
     <div className="fixed left-0 right-0 bottom-[3.25rem] sm:bottom-0 z-40 bg-slate-900/95 backdrop-blur border-t border-slate-800 px-3 py-2 sm:safe-bottom">
@@ -41,6 +49,12 @@ export function SelectionBar({ onPaste }: SelectionBarProps) {
             : count === 0
               ? 'Vælg opgaver'
               : `${count} valgt`}
+        </span>
+
+        <span className="hidden md:inline text-xs text-slate-500 truncate">
+          {count > 0
+            ? `${shortcut('C')} for at kopiere`
+            : `Klik en dag og ${shortcut('V')} for at sætte ind`}
         </span>
 
         <div className="flex-1" />

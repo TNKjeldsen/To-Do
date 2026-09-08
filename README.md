@@ -14,11 +14,17 @@ ingen konto, ingen backend, ingen tracking.
   - **Desktop:** drag-and-drop mellem dagskolonner (eller "Flyt til…"-knap)
   - **Mobil:** hold på en opgave (~220 ms) og slip den på en anden dag-fane i toppen,
     eller brug "Flyt til…"-knappen
-- **Vælg flere opgaver** — tryk på flueben-ikonet i toppen for at gå i vælge-tilstand.
-  Tryk på kortene (eller "Alle" i en dagsoverskrift) for at vælge dem, tryk **Kopiér**,
-  og sæt dem ind igen med **Sæt ind** → "I morgen" / en anden dag. Kopierede opgaver
-  kan også sættes ind direkte med "Sæt N ind"-knappen nederst i hver dagskolonne.
-  Udklipsholderen overlever en genstart af appen og ryddes fra "Sæt ind"-arket.
+- **Vælg flere opgaver og kopiér dem til en anden dag**
+  - **Desktop:** træk en markeringsfirkant hen over kortene (start på et tomt
+    sted), tryk **Ctrl/⌘+C**, klik på den dag du vil ramme, og tryk **Ctrl/⌘+V**.
+    Ctrl/⌘- eller shift-klik på et kort tilføjer eller fjerner det enkeltvis,
+    Esc rydder markeringen.
+  - **Mobil:** tryk på flueben-ikonet i toppen for at gå i vælge-tilstand, tryk
+    på kortene (eller "Alle" i en dagsoverskrift), og brug **Kopiér** / **Sæt ind**
+    i bjælken nederst.
+  - Uanset metode kan kopierede opgaver også sættes ind med "Sæt N ind"-knappen
+    nederst i hver dagskolonne, eller via **Sæt ind** → "I morgen" / en anden dag.
+  - Udklipsholderen overlever en genstart af appen og ryddes fra "Sæt ind"-arket.
 - **Fri rækkefølge** — kort kan trækkes hvorhen du vil, også når de har et klokkeslet.
   Sætter du et klokkeslet på en opgave, placeres den automatisk i kronologisk
   rækkefølge — derefter bestemmer du selv med træk-og-slip.

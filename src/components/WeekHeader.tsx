@@ -89,21 +89,6 @@ export function WeekHeader({
         ) : null}
         <button
           type="button"
-          onClick={toggleSelection}
-          aria-label={selectionMode ? 'Afslut valg' : 'Vælg opgaver'}
-          title={selectionMode ? 'Afslut valg' : 'Vælg flere opgaver'}
-          aria-pressed={selectionMode}
-          className={[
-            'p-2 rounded-lg transition',
-            selectionMode
-              ? 'bg-sky-500/20 text-sky-200'
-              : 'hover:bg-slate-800 active:bg-slate-700',
-          ].join(' ')}
-        >
-          <Icon name="check-square" size={20} />
-        </button>
-        <button
-          type="button"
           onClick={onOpenSettings}
           aria-label="Indstillinger"
           className="p-2 rounded-lg hover:bg-slate-800 active:bg-slate-700 transition"
@@ -153,6 +138,8 @@ export function WeekHeader({
               <Icon name="car" size={18} />
             </button>
           ) : null}
+          {/* Touch has no rubber-band gesture, so phones keep the explicit
+              tap-to-pick mode that desktop dropped. */}
           <button
             type="button"
             onClick={toggleSelection}

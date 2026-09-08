@@ -13,6 +13,13 @@ import { Icon } from './Icon';
 import { useDispatch, useTasksByDate } from '../state/AppStateContext';
 import { useSelection } from '../state/SelectionContext';
 
+/** "⌘V" on a Mac, "Ctrl+V" everywhere else. */
+function pasteShortcut(): string {
+  const mac =
+    typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || '');
+  return mac ? '⌘V' : 'Ctrl+V';
+}
+
 interface DayColumnProps {
   /** YYYY-MM-DD */
   dateKey: string;
@@ -36,7 +43,8 @@ export function DayColumn({
   const tasks = useTasksByDate(dateKey);
   const today = isToday(date);
   const dispatch = useDispatch();
-  const { selectionMode, selectedIds, setMany, clipboard } = useSelection();
+  const { selectionMode, selectedIds, setMany, clipboard, activeDate } = useSelection();
+  const isPasteTarget = activeDate === dateKey && clipboard.length > 0;
   const allSelected = tasks.length > 0 && tasks.every((t) => selectedIds.has(t.id));
 
   const { setNodeRef, isOver } = useDroppable({
@@ -48,10 +56,15 @@ export function DayColumn({
   return (
     <section
       ref={setNodeRef}
+      data-day-column={dateKey}
       className={[
         'flex flex-col rounded-xl border bg-slate-900/40 transition',
         today ? 'border-sky-600/60' : 'border-slate-800',
-        isOver ? 'ring-2 ring-sky-400/70 bg-sky-500/5' : '',
+        isOver
+          ? 'ring-2 ring-sky-400/70 bg-sky-500/5'
+          : isPasteTarget
+            ? 'ring-1 ring-sky-500/50'
+            : '',
       ].join(' ')}
       aria-labelledby={`day-${dateKey}`}
     >
@@ -113,6 +126,9 @@ export function DayColumn({
           >
             <Icon name="paste" size={12} />
             Sæt {clipboard.length} ind
+            {isPasteTarget ? (
+              <span className="text-slate-500 hidden md:inline">{pasteShortcut()}</span>
+            ) : null}
           </button>
         </div>
       ) : null}

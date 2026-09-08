@@ -88,9 +88,11 @@ export function WeekView({ reference, onOpenTask, onMoveTask, onOpenUnscheduled,
   const dayKeys = useMemo(() => days.map(toDateKey), [days]);
   const { state } = useAppState();
   const dispatch = useDispatch();
-  // Picking cards and dragging them are different gestures on the same
-  // surface, so drag-and-drop stands down while a selection is in progress.
-  const { selectionMode } = useSelection();
+  // Tap-to-pick (touch only) and dragging cards are the same gesture, so
+  // drag-and-drop stands down while that mode is on. The desktop marquee
+  // starts on empty space, so it never competes with a card drag.
+  const { selectionMode, selectedIds, setSelection, clearSelection, setActiveDate } =
+    useSelection();
 
   const todayIndex = days.findIndex((d) => isToday(d));
   const [activeIdx, setActiveIdx] = useState<number>(todayIndex >= 0 ? todayIndex : 0);
@@ -124,6 +126,12 @@ export function WeekView({ reference, onOpenTask, onMoveTask, onOpenUnscheduled,
     }
     return counts;
   }, [state.tasks, dayKeys, activeWorkspace]);
+
+  // On phones there is no marquee and only one day is on screen, so that day is
+  // implicitly the paste target.
+  useEffect(() => {
+    if (!isDesktop) setActiveDate(dayKeys[safeActive] ?? null);
+  }, [isDesktop, dayKeys, safeActive, setActiveDate]);
 
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -216,8 +224,86 @@ export function WeekView({ reference, onOpenTask, onMoveTask, onOpenUnscheduled,
     dispatch({ type: 'REORDER_TASK', id: taskId, toIndex });
   };
 
+  // ---------- Rubber-band selection (desktop) ----------
+  const [marquee, setMarquee] = useState<DOMRect | null>(null);
+  const marqueeStart = useRef<{
+    x: number;
+    y: number;
+    additive: boolean;
+    base: string[];
+    moved: boolean;
+  } | null>(null);
+
+  const handleSelectPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDesktop || e.button !== 0) return;
+    const target = e.target as HTMLElement;
+    // Clicking anywhere in a day — card included — makes it the paste target.
+    const column = target.closest<HTMLElement>('[data-day-column]');
+    setActiveDate(column?.dataset.dayColumn ?? null);
+    // Anything interactive keeps its own behaviour; the band only starts on
+    // the empty parts of the week.
+    if (target.closest('[data-task-wrapper], button, input, textarea, select, a, label')) {
+      return;
+    }
+    const additive = e.shiftKey || e.metaKey || e.ctrlKey;
+    marqueeStart.current = {
+      x: e.clientX,
+      y: e.clientY,
+      additive,
+      base: additive ? [...selectedIds] : [],
+      moved: false,
+    };
+
+    const onMove = (ev: PointerEvent) => {
+      const start = marqueeStart.current;
+      if (!start) return;
+      if (
+        !start.moved &&
+        Math.abs(ev.clientX - start.x) < 4 &&
+        Math.abs(ev.clientY - start.y) < 4
+      ) {
+        return;
+      }
+      start.moved = true;
+      const left = Math.min(start.x, ev.clientX);
+      const top = Math.min(start.y, ev.clientY);
+      const width = Math.abs(ev.clientX - start.x);
+      const height = Math.abs(ev.clientY - start.y);
+      setMarquee(new DOMRect(left, top, width, height));
+      const hits = new Set(start.base);
+      document.querySelectorAll<HTMLElement>('[data-task-wrapper]').forEach((el) => {
+        const r = el.getBoundingClientRect();
+        const overlaps =
+          r.right >= left && r.left <= left + width && r.bottom >= top && r.top <= top + height;
+        if (overlaps && el.dataset.taskWrapper) hits.add(el.dataset.taskWrapper);
+      });
+      setSelection([...hits]);
+    };
+
+    const onUp = () => {
+      const start = marqueeStart.current;
+      // A click on empty space (no drag) means "never mind".
+      if (start && !start.moved && !start.additive) clearSelection();
+      marqueeStart.current = null;
+      setMarquee(null);
+      document.body.classList.remove('select-none');
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+
+    // Stop the browser from text-selecting the week while the band is drawn.
+    document.body.classList.add('select-none');
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  };
+
   return (
-    <div className="mx-auto px-3 pt-3 pb-36 sm:pb-24 max-w-[1700px]">
+    <div
+      className="mx-auto px-3 pt-3 pb-36 sm:pb-24 max-w-[1700px]"
+      onPointerDown={handleSelectPointerDown}
+    >
       <DndContext
         // Use closestCenter so dropping near an empty column (which shrinks
         // after its task moves away) still resolves to that column — the
@@ -338,6 +424,19 @@ export function WeekView({ reference, onOpenTask, onMoveTask, onOpenUnscheduled,
           ) : null}
         </DragOverlay>
       </DndContext>
+
+      {marquee ? (
+        <div
+          aria-hidden="true"
+          className="fixed z-40 pointer-events-none rounded-sm border border-sky-400/80 bg-sky-400/15"
+          style={{
+            left: marquee.left,
+            top: marquee.top,
+            width: marquee.width,
+            height: marquee.height,
+          }}
+        />
+      ) : null}
 
       {/* FAB for unscheduled tasks — hidden while the selection bar owns the
           bottom of the screen. */}

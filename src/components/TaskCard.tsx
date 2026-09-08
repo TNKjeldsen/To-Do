@@ -18,18 +18,26 @@ export function TaskCard({
   isDragging = false,
 }: TaskCardProps) {
   const dispatch = useDispatch();
-  const { selectionMode, selectedIds, toggle } = useSelection();
+  const { selectionMode, selectedIds, toggle, clearSelection } = useSelection();
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const selected = selectedIds.has(task.id);
   const total = task.subtasks.length;
   const done = task.subtasks.filter((s) => s.done).length;
 
-  // In selection mode the whole card is a selection target — tapping it must
-  // not open the detail sheet or tick the task off.
-  const activate = () => {
-    if (selectionMode) toggle(task.id);
-    else onOpen(task);
+  /**
+   * Ctrl/Cmd/Shift-click adds or removes a single card from a rubber-band
+   * selection without opening it. In touch selection mode every tap does that.
+   * A plain click is a plain click: it opens the card and drops the selection.
+   */
+  const activate = (e?: { ctrlKey: boolean; metaKey: boolean; shiftKey: boolean }) => {
+    const modified = Boolean(e && (e.ctrlKey || e.metaKey || e.shiftKey));
+    if (selectionMode || modified) {
+      toggle(task.id);
+      return;
+    }
+    clearSelection();
+    onOpen(task);
   };
 
   const handleToggle = (e: React.MouseEvent) => {
@@ -58,9 +66,9 @@ export function TaskCard({
 
   return (
     <div
-      onClick={() => {
+      onClick={(e) => {
         if (isDragging) return;
-        activate();
+        activate(e);
       }}
       role="button"
       tabIndex={0}
@@ -68,11 +76,12 @@ export function TaskCard({
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          activate();
+          activate(e);
         }
       }}
       className={[
         'group relative rounded-lg border bg-slate-800/70 hover:bg-slate-800 active:bg-slate-700/80 transition cursor-pointer select-none',
+        // A marquee-selected card gets the ring too, without being in a mode.
         isDragging ? 'border-sky-500/60 shadow-xl' : 'border-slate-700/70',
         selected ? 'ring-2 ring-sky-400 border-sky-500/60 bg-sky-500/10' : '',
         task.done ? 'opacity-60 task-done-pop' : '',
