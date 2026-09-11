@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -9,47 +10,19 @@ import {
 import type { TaskSnapshot } from '../types';
 import { useAppState } from './AppStateContext';
 
-const CLIPBOARD_KEY = 'todo.clipboard.v1';
+const LEGACY_CLIPBOARD_KEY = 'todo.clipboard.v1';
 
 /**
- * The clipboard outlives a reload on purpose — copying a whole day's schedule
- * and then pasting it after the app was backgrounded on a phone is exactly the
- * flow this exists for.
+ * Earlier builds kept the clipboard in localStorage. It turned out to be more
+ * annoying than useful — the app would still offer to paste last week's nine
+ * cards days later — so the clipboard now lives and dies with the session.
+ * This just sweeps up the leftover key.
  */
-function loadClipboard(): TaskSnapshot[] {
-  if (typeof localStorage === 'undefined') return [];
+function dropLegacyClipboard(): void {
   try {
-    const raw = localStorage.getItem(CLIPBOARD_KEY);
-    if (!raw) return [];
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    const out: TaskSnapshot[] = [];
-    for (const item of parsed) {
-      if (!item || typeof item !== 'object') continue;
-      const o = item as Record<string, unknown>;
-      if (typeof o.title !== 'string') continue;
-      out.push({
-        title: o.title,
-        ...(typeof o.time === 'string' && /^\d{2}:\d{2}$/.test(o.time)
-          ? { time: o.time }
-          : {}),
-        subtasks: Array.isArray(o.subtasks)
-          ? o.subtasks.filter((t): t is string => typeof t === 'string')
-          : [],
-      });
-    }
-    return out;
+    localStorage.removeItem(LEGACY_CLIPBOARD_KEY);
   } catch {
-    return [];
-  }
-}
-
-function saveClipboard(snapshots: TaskSnapshot[]): void {
-  try {
-    if (snapshots.length === 0) localStorage.removeItem(CLIPBOARD_KEY);
-    else localStorage.setItem(CLIPBOARD_KEY, JSON.stringify(snapshots));
-  } catch {
-    // A full or unavailable localStorage shouldn't break copy/paste in-session.
+    // Nothing to do if storage is unavailable.
   }
 }
 
@@ -86,8 +59,10 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
   const { state } = useAppState();
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
-  const [clipboard, setClipboard] = useState<TaskSnapshot[]>(loadClipboard);
+  const [clipboard, setClipboard] = useState<TaskSnapshot[]>([]);
   const [activeDate, setActiveDate] = useState<string | null>(null);
+
+  useEffect(dropLegacyClipboard, []);
 
   const enterSelection = useCallback(() => setSelectionMode(true), []);
 
@@ -137,14 +112,10 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
           .map((s) => s.text),
       }));
     setClipboard(snapshots);
-    saveClipboard(snapshots);
     return snapshots.length;
   }, [state.tasks, selectedIds]);
 
-  const clearClipboard = useCallback(() => {
-    setClipboard([]);
-    saveClipboard([]);
-  }, []);
+  const clearClipboard = useCallback(() => setClipboard([]), []);
 
   const value = useMemo<SelectionValue>(
     () => ({

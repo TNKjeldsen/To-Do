@@ -9,16 +9,8 @@ import {
 } from '../lib/date';
 import { AddTaskInput } from './AddTaskInput';
 import { DraggableTaskCard } from './DraggableTaskCard';
-import { Icon } from './Icon';
-import { useDispatch, useTasksByDate } from '../state/AppStateContext';
+import { useTasksByDate } from '../state/AppStateContext';
 import { useSelection } from '../state/SelectionContext';
-
-/** "⌘V" on a Mac, "Ctrl+V" everywhere else. */
-function pasteShortcut(): string {
-  const mac =
-    typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || '');
-  return mac ? '⌘V' : 'Ctrl+V';
-}
 
 interface DayColumnProps {
   /** YYYY-MM-DD */
@@ -42,8 +34,8 @@ export function DayColumn({
   const date = parseDateKey(dateKey);
   const tasks = useTasksByDate(dateKey);
   const today = isToday(date);
-  const dispatch = useDispatch();
   const { selectionMode, selectedIds, setMany, clipboard, activeDate } = useSelection();
+  // Only worth pointing out while there is actually something to paste.
   const isPasteTarget = activeDate === dateKey && clipboard.length > 0;
   const allSelected = tasks.length > 0 && tasks.every((t) => selectedIds.has(t.id));
 
@@ -114,24 +106,6 @@ export function DayColumn({
           ))}
         </ul>
       </SortableContext>
-
-      {!selectionMode && clipboard.length > 0 ? (
-        <div className={compact ? 'px-2.5 pb-1.5' : 'px-3 pb-2'}>
-          <button
-            type="button"
-            onClick={() =>
-              dispatch({ type: 'PASTE_TASKS', snapshots: clipboard, toDate: dateKey })
-            }
-            className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md border border-dashed border-sky-600/60 text-[11px] text-sky-300 hover:bg-sky-500/15 active:bg-sky-500/25 transition"
-          >
-            <Icon name="paste" size={12} />
-            Sæt {clipboard.length} ind
-            {isPasteTarget ? (
-              <span className="text-slate-500 hidden md:inline">{pasteShortcut()}</span>
-            ) : null}
-          </button>
-        </div>
-      ) : null}
 
       <div className={compact ? 'px-1.5 pb-1.5' : 'px-2 pb-2'}>
         <AddTaskInput date={dateKey} />

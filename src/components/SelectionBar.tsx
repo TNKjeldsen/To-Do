@@ -52,9 +52,9 @@ export function SelectionBar({ onPaste }: SelectionBarProps) {
         </span>
 
         <span className="hidden md:inline text-xs text-slate-500 truncate">
-          {count > 0
-            ? `${shortcut('C')} for at kopiere`
-            : `Klik en dag og ${shortcut('V')} for at sætte ind`}
+          {clipboard.length > 0
+            ? `Klik en dag og ${shortcut('V')}`
+            : `${shortcut('C')} for at kopiere`}
         </span>
 
         <div className="flex-1" />

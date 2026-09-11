@@ -22,9 +22,10 @@ ingen konto, ingen backend, ingen tracking.
   - **Mobil:** tryk på flueben-ikonet i toppen for at gå i vælge-tilstand, tryk
     på kortene (eller "Alle" i en dagsoverskrift), og brug **Kopiér** / **Sæt ind**
     i bjælken nederst.
-  - Uanset metode kan kopierede opgaver også sættes ind med "Sæt N ind"-knappen
-    nederst i hver dagskolonne, eller via **Sæt ind** → "I morgen" / en anden dag.
-  - Udklipsholderen overlever en genstart af appen og ryddes fra "Sæt ind"-arket.
+  - **Sæt ind**-knappen i bjælken åbner en dagvælger med "I dag" / "I morgen"
+    og ugenavigation, hvis du hellere vil pege end bruge tastaturet.
+  - Kopierede opgaver holder kun så længe appen er åben — der ligger ikke en
+    gammel kopi og venter næste gang du starter.
 - **Fri rækkefølge** — kort kan trækkes hvorhen du vil, også når de har et klokkeslet.
   Sætter du et klokkeslet på en opgave, placeres den automatisk i kronologisk
   rækkefølge — derefter bestemmer du selv med træk-og-slip.
